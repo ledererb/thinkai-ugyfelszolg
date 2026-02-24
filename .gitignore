@@ -1,7 +1,5 @@
 # Python virtual environment
-venv/
 .venv/
-env/
 pyvenv.cfg
 
 # Python
