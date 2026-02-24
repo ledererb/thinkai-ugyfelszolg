@@ -1,0 +1,26 @@
+# Python virtual environment
+venv/
+.venv/
+env/
+pyvenv.cfg
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment variables
+.env
+.env.local
+
+# Node modules
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
