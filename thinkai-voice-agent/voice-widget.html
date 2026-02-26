@@ -414,15 +414,17 @@
             border-radius: 10px;
             font-size: 0.78rem;
             font-weight: 500;
-            white-space: nowrap;
-            animation: fadeToast 3s ease forwards;
+            white-space: normal;
+            max-width: 300px;
+            line-height: 1.4;
+            animation: fadeToast 5s ease forwards;
             backdrop-filter: blur(8px);
         }
 
         @keyframes fadeToast {
 
             0%,
-            70% {
+            80% {
                 opacity: 1;
             }
 
@@ -477,6 +479,13 @@
             // Audio queue for smooth playback
             let audioQueue = [];
             let isPlaying = false;
+
+            // Retry & timeout
+            const MAX_RETRIES = 2;
+            const TIMEOUT_MS = 30000; // 30 seconds
+            let retryCount = 0;
+            let timeoutTimer = null;
+            let lastActivityTime = 0;
 
             // ── DOM references ─────────────────────────────────────
             const widget = document.getElementById('thinkai-voice-widget');
@@ -680,11 +689,31 @@
 
             // ── Error Toast ────────────────────────────────────────
             function showError(msg) {
+                // Remove existing toasts
+                widget.querySelectorAll('.error-toast').forEach(t => t.remove());
                 const toast = document.createElement('div');
                 toast.className = 'error-toast';
                 toast.textContent = msg;
                 widget.appendChild(toast);
-                setTimeout(() => toast.remove(), 3200);
+                setTimeout(() => toast.remove(), 5500);
+            }
+
+            // ── Timeout ───────────────────────────────────────────
+            function resetTimeout() {
+                lastActivityTime = Date.now();
+                clearTimeout(timeoutTimer);
+                timeoutTimer = setTimeout(() => {
+                    if (state === 'active') {
+                        console.warn('[ThinkAI] 30s timeout — no response');
+                        showError('A kapcsolat időtúllépés miatt megszakadt. Próbáld újra!');
+                        endSession();
+                    }
+                }, TIMEOUT_MS);
+            }
+
+            function clearTimeoutTimer() {
+                clearTimeout(timeoutTimer);
+                timeoutTimer = null;
             }
 
             // ── Session Control ────────────────────────────────────
@@ -698,58 +727,91 @@
                     // Request mic permission first
                     await startMicrophone();
 
-                    // Connect WebSocket
-                    ws = new WebSocket(WS_URL);
-                    ws.binaryType = 'arraybuffer';
-
-                    ws.onopen = () => {
-                        state = 'active';
-                        render();
-                    };
-
-                    ws.onmessage = (event) => {
-                        try {
-                            const frame = FrameMsg.decode(new Uint8Array(event.data));
-                            const type = frame.frame;
-
-                            if (type === 'audio' && frame.audio) {
-                                const sr = frame.audio.sample_rate || SAMPLE_RATE;
-                                queueAudio(frame.audio.audio, sr);
-                            } else if (type === 'transcription' && frame.transcription) {
-                                addTranscript('user', frame.transcription.text);
-                            } else if (type === 'text' && frame.text) {
-                                addTranscript('bot', frame.text.text);
-                            }
-                        } catch (err) {
-                            console.warn('[ThinkAI] Frame decode error:', err);
-                        }
-                    };
-
-                    ws.onerror = () => {
-                        showError('Nem sikerült csatlakozni a szerverhez');
-                        endSession();
-                    };
-
-                    ws.onclose = () => {
-                        if (state === 'active') endSession();
-                    };
+                    // Connect WebSocket (with retry)
+                    connectWebSocket();
 
                 } catch (err) {
                     console.error('[ThinkAI] Error:', err);
                     if (err.name === 'NotAllowedError') {
-                        showError('Kérjük, engedélyezd a mikrofon használatát');
+                        showError('A mikrofon engedély szükséges a hangalapú chathez.');
                     } else if (err.name === 'NotFoundError') {
-                        showError('Nem található mikrofon');
+                        showError('Nem található mikrofon a készüléken.');
                     } else {
-                        showError('Hiba történt a csatlakozás során');
+                        showError('Az asszisztens jelenleg nem elérhető. Írj nekünk: hello@thinkai.hu');
                     }
+                    if (err.name === 'NotAllowedError' || err.name === 'NotFoundError') {
+                        endSession();
+                    }
+                }
+            }
+
+            function connectWebSocket() {
+                ws = new WebSocket(WS_URL);
+                ws.binaryType = 'arraybuffer';
+
+                ws.onopen = () => {
+                    retryCount = 0; // reset on successful connection
+                    state = 'active';
+                    render();
+                    resetTimeout(); // start 30s inactivity timer
+                };
+
+                ws.onmessage = (event) => {
+                    resetTimeout(); // reset timer on every incoming message
+                    try {
+                        const frame = FrameMsg.decode(new Uint8Array(event.data));
+                        const type = frame.frame;
+
+                        if (type === 'audio' && frame.audio) {
+                            const sr = frame.audio.sample_rate || SAMPLE_RATE;
+                            queueAudio(frame.audio.audio, sr);
+                        } else if (type === 'transcription' && frame.transcription) {
+                            addTranscript('user', frame.transcription.text);
+                        } else if (type === 'text' && frame.text) {
+                            addTranscript('bot', frame.text.text);
+                        }
+                    } catch (err) {
+                        console.warn('[ThinkAI] Frame decode error:', err);
+                    }
+                };
+
+                ws.onerror = () => {
+                    handleConnectionError();
+                };
+
+                ws.onclose = () => {
+                    if (state === 'active') {
+                        handleConnectionError();
+                    }
+                };
+            }
+
+            function handleConnectionError() {
+                clearTimeoutTimer();
+
+                if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    console.log(`[ThinkAI] Retry ${retryCount}/${MAX_RETRIES}...`);
+                    // Clean up old WS without full endSession
+                    if (ws) { try { ws.close(); } catch (e) { } ws = null; }
+                    state = 'connecting';
+                    render();
+                    // Retry after a short delay
+                    setTimeout(() => {
+                        if (state === 'connecting') connectWebSocket();
+                    }, 1500);
+                } else {
+                    showError('Az asszisztens jelenleg nem elérhető. Írj nekünk: hello@thinkai.hu');
+                    retryCount = 0;
                     endSession();
                 }
             }
 
             function endSession() {
+                clearTimeoutTimer();
                 stopMicrophone();
-                if (ws) { ws.close(); ws = null; }
+                if (ws) { try { ws.close(); } catch (e) { } ws = null; }
+                retryCount = 0;
                 state = 'idle';
                 render();
             }
