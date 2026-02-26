@@ -41,6 +41,7 @@ async def run_voice_pipeline():
         LLMUserAggregatorParams,
     )
     from pipecat.serializers.protobuf import ProtobufFrameSerializer
+    from pipecat.frames.frames import LLMMessagesFrame, TextFrame
     from pipecat.services.anthropic.llm import AnthropicLLMService
     from pipecat.services.cartesia.tts import CartesiaTTSService
     from pipecat.services.deepgram.stt import DeepgramSTTService
@@ -149,13 +150,27 @@ async def run_voice_pipeline():
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
         logger.info("Client connected")
+        # Send initial greeting via TTS
+        greeting = "Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?"
+        await task.queue_frames(
+            [
+                LLMMessagesFrame(
+                    [{"role": "assistant", "content": greeting}]
+                ),
+                TextFrame(text=greeting),
+            ]
+        )
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
         logger.info("Client disconnected")
 
     # ── Run ───────────────────────────────────────────────────────────────
-    runner = PipelineRunner()
+    # Ignore SIGINT in the pipeline task — only uvicorn should handle it.
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    runner = PipelineRunner(handle_sigint=False)
     logger.info("Starting Pipecat voice pipeline on ws://0.0.0.0:8765")
     await runner.run(task)
 
