@@ -1,5 +1,4 @@
 # Python virtual environment
-.venv/
 pyvenv.cfg
 
 # Python
@@ -12,9 +11,6 @@ dist/
 build/
 *.egg
 
-# Environment variables
-.env
-.env.local
 
 # Node modules
 node_modules/
