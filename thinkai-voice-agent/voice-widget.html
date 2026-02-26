@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="hu">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThinkAI Voice Widget</title>
+    <meta name="description" content="ThinkAI hangalapú AI asszisztens widget">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --tw-navy: #0a1628;
+            --tw-navy-light: #132038;
+            --tw-blue: #3b82f6;
+            --tw-blue-light: #60a5fa;
+            --tw-blue-glow: rgba(59, 130, 246, 0.35);
+            --tw-white: #f1f5f9;
+            --tw-gray: #94a3b8;
+            --tw-red: #ef4444;
+            --tw-green: #22c55e;
+            --widget-font: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            font-family: var(--widget-font);
+            /* Demo page background — remove when embedding */
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--tw-white);
+        }
+
+        .demo-page {
+            text-align: center;
+            opacity: 0.4;
+            user-select: none;
+        }
+
+        .demo-page h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .demo-page p {
+            font-size: 0.95rem;
+            color: var(--tw-gray);
+        }
+
+        /* ── Widget Container ─────────────────────────────────── */
+        #thinkai-voice-widget {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 99999;
+            font-family: var(--widget-font);
+        }
+
+        /* ── Floating Action Button (idle) ────────────────────── */
+        .widget-fab {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            background: linear-gradient(135deg, #1e3a5f 0%, var(--tw-blue) 100%);
+            box-shadow:
+                0 4px 20px rgba(59, 130, 246, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: visible;
+        }
+
+        .widget-fab:hover {
+            transform: scale(1.08);
+            box-shadow:
+                0 6px 28px rgba(59, 130, 246, 0.45),
+                0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .widget-fab:active {
+            transform: scale(0.96);
+        }
+
+        .widget-fab svg {
+            width: 26px;
+            height: 26px;
+            fill: white;
+            transition: transform 0.3s;
+        }
+
+        /* Tooltip */
+        .widget-fab::after {
+            content: 'Beszélj velünk';
+            position: absolute;
+            right: 72px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--tw-navy);
+            color: var(--tw-white);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+        }
+
+        .widget-fab:hover::after {
+            opacity: 1;
+        }
+
+        /* ── Active Panel ─────────────────────────────────────── */
+        .widget-panel {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 320px;
+            background: rgba(10, 22, 40, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 20px;
+            padding: 28px 24px 20px;
+            box-shadow:
+                0 12px 48px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(59, 130, 246, 0.08);
+            transform-origin: bottom right;
+            animation: panelIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes panelIn {
+            from {
+                opacity: 0;
+                transform: scale(0.7) translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .widget-panel.closing {
+            animation: panelOut 0.25s ease-in forwards;
+        }
+
+        @keyframes panelOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: scale(0.7) translateY(20px);
+            }
+        }
+
+        /* ── Panel Header ─────────────────────────────────────── */
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .panel-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-brand-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #1e3a5f, var(--tw-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .panel-brand-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+        }
+
+        .panel-brand-text {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--tw-white);
+        }
+
+        .panel-close {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, 0.06);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--tw-gray);
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .panel-close:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--tw-white);
+        }
+
+        /* ── Visualizer ───────────────────────────────────────── */
+        .visualizer-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .pulse-ring {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pulse-ring .ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--tw-blue);
+            opacity: 0;
+        }
+
+        .pulse-ring.active .ring {
+            animation: pulseRing 2s ease-out infinite;
+        }
+
+        .pulse-ring.active .ring:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+
+        .pulse-ring.active .ring:nth-child(3) {
+            animation-delay: 1s;
+        }
+
+        @keyframes pulseRing {
+            0% {
+                transform: scale(0.6);
+                opacity: 0.6;
+            }
+
+            100% {
+                transform: scale(1.4);
+                opacity: 0;
+            }
+        }
+
+        .pulse-core {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1e3a5f, var(--tw-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 24px var(--tw-blue-glow);
+            z-index: 1;
+            transition: all 0.3s;
+        }
+
+        .pulse-core svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        /* Connecting spinner */
+        .pulse-ring.connecting .ring {
+            animation: none;
+            border: 2px solid transparent;
+            border-top-color: var(--tw-blue);
+        }
+
+        .pulse-ring.connecting .ring:first-child {
+            animation: spin 1s linear infinite;
+            opacity: 1;
+        }
+
+        .pulse-ring.connecting .ring:nth-child(2),
+        .pulse-ring.connecting .ring:nth-child(3) {
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── Status Text ──────────────────────────────────────── */
+        .status-text {
+            font-size: 0.82rem;
+            color: var(--tw-gray);
+            text-align: center;
+            transition: color 0.3s;
+        }
+
+        .status-text.connected {
+            color: var(--tw-green);
+        }
+
+        .status-text.error {
+            color: var(--tw-red);
+        }
+
+        /* ── Action Button ────────────────────────────────────── */
+        .action-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-family: var(--widget-font);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .action-btn.stop {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--tw-red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .action-btn.stop:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .action-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        /* ── Transcript ───────────────────────────────────────── */
+        .transcript {
+            margin-top: 12px;
+            max-height: 80px;
+            overflow-y: auto;
+            font-size: 0.75rem;
+            color: var(--tw-gray);
+            line-height: 1.5;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .transcript:empty {
+            display: none;
+        }
+
+        .transcript .user {
+            color: var(--tw-blue-light);
+        }
+
+        .transcript .bot {
+            color: var(--tw-white);
+            opacity: 0.8;
+        }
+
+        /* ── Error Toast ──────────────────────────────────────── */
+        .error-toast {
+            position: absolute;
+            bottom: 72px;
+            right: 0;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: var(--tw-red);
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            white-space: nowrap;
+            animation: fadeToast 3s ease forwards;
+            backdrop-filter: blur(8px);
+        }
+
+        @keyframes fadeToast {
+
+            0%,
+            70% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                pointer-events: none;
+            }
+        }
+
+        /* ── Mobile responsive ────────────────────────────────── */
+        @media (max-width: 400px) {
+            .widget-panel {
+                width: calc(100vw - 32px);
+                right: -8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Demo page content (remove for production embed) -->
+    <div class="demo-page">
+        <h1>thinkai.hu</h1>
+        <p>Voice Widget Demo — kattints a jobb alsó sarokban lévő gombra</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ThinkAI Voice Widget
+         ═══════════════════════════════════════════════════════ -->
+    <div id="thinkai-voice-widget"></div>
+
+    <!-- Protobuf for Pipecat frame serialization -->
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7/dist/protobuf.min.js"></script>
+    <script>
+        (function () {
+            'use strict';
+
+            // ── Config ─────────────────────────────────────────────
+            const WS_URL = (typeof NEXT_PUBLIC_WS_URL !== 'undefined')
+                ? NEXT_PUBLIC_WS_URL
+                : 'ws://localhost:8765';
+            const SAMPLE_RATE = 16000;
+
+            // ── State ──────────────────────────────────────────────
+            let state = 'idle';   // idle | connecting | active | ended
+            let ws = null;
+            let audioContext = null;
+            let mediaStream = null;
+            let processor = null;
+            let FrameMsg = null;
+
+            // Audio queue for smooth playback
+            let audioQueue = [];
+            let isPlaying = false;
+
+            // ── DOM references ─────────────────────────────────────
+            const widget = document.getElementById('thinkai-voice-widget');
+
+            // ── SVG Icons ──────────────────────────────────────────
+            const icons = {
+                mic: `<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`,
+                stop: `<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`,
+                close: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`,
+                wave: `<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`,
+            };
+
+            // ── Render ─────────────────────────────────────────────
+            function render() {
+                if (state === 'idle') {
+                    widget.innerHTML = `
+                    <button class="widget-fab" id="tw-fab" aria-label="Beszélj velünk">
+                        ${icons.mic}
+                    </button>`;
+                    widget.querySelector('#tw-fab').addEventListener('click', startSession);
+                } else {
+                    const isConnecting = state === 'connecting';
+                    const isActive = state === 'active';
+                    const ringClass = isConnecting ? 'connecting' : (isActive ? 'active' : '');
+                    const statusText = isConnecting ? 'Csatlakozás...'
+                        : isActive ? 'Hallgatlak — beszélj bátran!'
+                            : '';
+                    const statusClass = isActive ? 'connected' : '';
+
+                    widget.innerHTML = `
+                    <div class="widget-panel" id="tw-panel">
+                        <div class="panel-header">
+                            <div class="panel-brand">
+                                <div class="panel-brand-icon">${icons.wave}</div>
+                                <span class="panel-brand-text">ThinkAI Asszisztens</span>
+                            </div>
+                            <button class="panel-close" id="tw-close" aria-label="Bezárás">${icons.close}</button>
+                        </div>
+                        <div class="visualizer-area">
+                            <div class="pulse-ring ${ringClass}">
+                                <div class="ring"></div>
+                                <div class="ring"></div>
+                                <div class="ring"></div>
+                                <div class="pulse-core">${isActive ? icons.mic : icons.mic}</div>
+                            </div>
+                            <div class="status-text ${statusClass}">${statusText}</div>
+                        </div>
+                        ${isActive ? `
+                            <button class="action-btn stop" id="tw-stop">
+                                ${icons.stop} Befejezés
+                            </button>
+                            <div class="transcript" id="tw-transcript"></div>
+                        ` : ''}
+                    </div>`;
+
+                    widget.querySelector('#tw-close').addEventListener('click', endSession);
+                    const stopBtn = widget.querySelector('#tw-stop');
+                    if (stopBtn) stopBtn.addEventListener('click', endSession);
+                }
+            }
+
+            // ── Protobuf Init ──────────────────────────────────────
+            async function initProtobuf() {
+                if (FrameMsg) return;
+                const Root = protobuf.Root.fromJSON({
+                    nested: {
+                        pipecat: {
+                            nested: {
+                                TextFrame: {
+                                    fields: {
+                                        id: { type: "uint64", id: 1 },
+                                        name: { type: "string", id: 2 },
+                                        text: { type: "string", id: 3 }
+                                    }
+                                },
+                                AudioRawFrame: {
+                                    fields: {
+                                        id: { type: "uint64", id: 1 },
+                                        name: { type: "string", id: 2 },
+                                        audio: { type: "bytes", id: 3 },
+                                        sample_rate: { type: "uint32", id: 4 },
+                                        num_channels: { type: "uint32", id: 5 },
+                                        pts: { type: "uint64", id: 6 }
+                                    }
+                                },
+                                TranscriptionFrame: {
+                                    fields: {
+                                        id: { type: "uint64", id: 1 },
+                                        name: { type: "string", id: 2 },
+                                        text: { type: "string", id: 3 },
+                                        user_id: { type: "string", id: 4 },
+                                        timestamp: { type: "string", id: 5 }
+                                    }
+                                },
+                                MessageFrame: { fields: { data: { type: "string", id: 1 } } },
+                                Frame: {
+                                    oneofs: { frame: { oneof: ["text", "audio", "transcription", "message"] } },
+                                    fields: {
+                                        text: { type: "TextFrame", id: 1 },
+                                        audio: { type: "AudioRawFrame", id: 2 },
+                                        transcription: { type: "TranscriptionFrame", id: 3 },
+                                        message: { type: "MessageFrame", id: 4 }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                FrameMsg = Root.lookupType("pipecat.Frame");
+            }
+
+            // ── Audio Encoding ─────────────────────────────────────
+            function float32ToPCM16(float32) {
+                const buf = new ArrayBuffer(float32.length * 2);
+                const view = new DataView(buf);
+                for (let i = 0; i < float32.length; i++) {
+                    const s = Math.max(-1, Math.min(1, float32[i]));
+                    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+                return buf;
+            }
+
+            function encodeAudioFrame(pcmBuf) {
+                const frame = FrameMsg.create({
+                    audio: {
+                        audio: new Uint8Array(pcmBuf),
+                        sample_rate: SAMPLE_RATE,
+                        num_channels: 1,
+                    }
+                });
+                return FrameMsg.encode(frame).finish();
+            }
+
+            // ── Audio Playback Queue ───────────────────────────────
+            function queueAudio(audioBytes, sampleRate) {
+                if (!audioContext) return;
+                const pcm16 = new Int16Array(audioBytes.buffer, audioBytes.byteOffset, audioBytes.byteLength / 2);
+                const float32 = new Float32Array(pcm16.length);
+                for (let i = 0; i < pcm16.length; i++) {
+                    float32[i] = pcm16[i] / 32768.0;
+                }
+                const buffer = audioContext.createBuffer(1, float32.length, sampleRate || SAMPLE_RATE);
+                buffer.getChannelData(0).set(float32);
+                audioQueue.push(buffer);
+                if (!isPlaying) playNext();
+            }
+
+            function playNext() {
+                if (audioQueue.length === 0) { isPlaying = false; return; }
+                isPlaying = true;
+                const buffer = audioQueue.shift();
+                const source = audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioContext.destination);
+                source.onended = playNext;
+                source.start();
+            }
+
+            // ── Transcript ─────────────────────────────────────────
+            function addTranscript(role, text) {
+                const el = document.getElementById('tw-transcript');
+                if (!el) return;
+                const cls = role === 'user' ? 'user' : 'bot';
+                const prefix = role === 'user' ? 'Te' : 'AI';
+                el.innerHTML += `<div class="${cls}"><b>${prefix}:</b> ${text}</div>`;
+                el.scrollTop = el.scrollHeight;
+            }
+
+            // ── Microphone ─────────────────────────────────────────
+            async function startMicrophone() {
+                audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: SAMPLE_RATE,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                    }
+                });
+
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                processor = audioContext.createScriptProcessor(4096, 1, 1);
+                processor.onaudioprocess = (e) => {
+                    if (state !== 'active' || !ws || ws.readyState !== WebSocket.OPEN) return;
+                    const float32 = e.inputBuffer.getChannelData(0);
+                    const pcm16 = float32ToPCM16(float32);
+                    ws.send(encodeAudioFrame(pcm16));
+                };
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+            }
+
+            function stopMicrophone() {
+                if (processor) { processor.disconnect(); processor = null; }
+                if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+                if (audioContext) { audioContext.close(); audioContext = null; }
+                audioQueue = [];
+                isPlaying = false;
+            }
+
+            // ── Error Toast ────────────────────────────────────────
+            function showError(msg) {
+                const toast = document.createElement('div');
+                toast.className = 'error-toast';
+                toast.textContent = msg;
+                widget.appendChild(toast);
+                setTimeout(() => toast.remove(), 3200);
+            }
+
+            // ── Session Control ────────────────────────────────────
+            async function startSession() {
+                state = 'connecting';
+                render();
+
+                try {
+                    await initProtobuf();
+
+                    // Request mic permission first
+                    await startMicrophone();
+
+                    // Connect WebSocket
+                    ws = new WebSocket(WS_URL);
+                    ws.binaryType = 'arraybuffer';
+
+                    ws.onopen = () => {
+                        state = 'active';
+                        render();
+                    };
+
+                    ws.onmessage = (event) => {
+                        try {
+                            const frame = FrameMsg.decode(new Uint8Array(event.data));
+                            const type = frame.frame;
+
+                            if (type === 'audio' && frame.audio) {
+                                const sr = frame.audio.sample_rate || SAMPLE_RATE;
+                                queueAudio(frame.audio.audio, sr);
+                            } else if (type === 'transcription' && frame.transcription) {
+                                addTranscript('user', frame.transcription.text);
+                            } else if (type === 'text' && frame.text) {
+                                addTranscript('bot', frame.text.text);
+                            }
+                        } catch (err) {
+                            console.warn('[ThinkAI] Frame decode error:', err);
+                        }
+                    };
+
+                    ws.onerror = () => {
+                        showError('Nem sikerült csatlakozni a szerverhez');
+                        endSession();
+                    };
+
+                    ws.onclose = () => {
+                        if (state === 'active') endSession();
+                    };
+
+                } catch (err) {
+                    console.error('[ThinkAI] Error:', err);
+                    if (err.name === 'NotAllowedError') {
+                        showError('Kérjük, engedélyezd a mikrofon használatát');
+                    } else if (err.name === 'NotFoundError') {
+                        showError('Nem található mikrofon');
+                    } else {
+                        showError('Hiba történt a csatlakozás során');
+                    }
+                    endSession();
+                }
+            }
+
+            function endSession() {
+                stopMicrophone();
+                if (ws) { ws.close(); ws = null; }
+                state = 'idle';
+                render();
+            }
+
+            // ── Init ───────────────────────────────────────────────
+            render();
+
+        })();
+    </script>
+</body>
+
+</html>
