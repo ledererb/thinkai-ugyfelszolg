@@ -40,6 +40,7 @@ async def run_voice_pipeline():
         LLMContextAggregatorPair,
         LLMUserAggregatorParams,
     )
+    from pipecat.serializers.protobuf import ProtobufFrameSerializer
     from pipecat.services.anthropic.llm import AnthropicLLMService
     from pipecat.services.cartesia.tts import CartesiaTTSService
     from pipecat.services.deepgram.stt import DeepgramSTTService
@@ -50,7 +51,11 @@ async def run_voice_pipeline():
 
     # ── Transport ────────────────────────────────────────────────────────
     transport = WebsocketServerTransport(
-        params=WebsocketServerParams(),
+        params=WebsocketServerParams(
+            serializer=ProtobufFrameSerializer(),
+            audio_out_enabled=True,
+            add_wav_header=False,
+        ),
         host="0.0.0.0",
         port=8765,
     )
