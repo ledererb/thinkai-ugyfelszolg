@@ -1,0 +1,150 @@
+ThinkAI Kft.
+Hangalapú AI Asszisztens — Projektbriefing
+thinkai.hu  |  2026. február
+Projekt neve	ThinkAI Hangalapú Showcase Asszisztens
+Célja	Weboldalon elérhető AI hangasszisztens prototípus, amely bemutatja a ThinkAI képességeit potenciális ügyfeleknek
+Technológiai stack	Pipecat + Deepgram + Claude + Cartesia
+Infrastruktúra	Vercel (frontend) + Railway (backend)
+Határidő (prototípus)	~3–4 munkanap
+Becsült havi üzemeltetési költség	~$50–120/hó (forgalomtól függően)
+
+1. Projekt célja
+A ThinkAI weboldalára (thinkai.hu) egy hangalapú AI asszisztenst készítünk, amely két célt szolgál egyszerre:
+•	Bemutató eszköz: a látogató azonnal megtapasztalja, milyen egy éles AI hangmegoldás — maga a widget a legjobb értékesítési érv.
+•	Információs asszisztens: válaszol a ThinkAI szolgáltatásaival, projektjeivel és módszertanával kapcsolatos kérdésekre, és érdeklődő esetén a kapcsolatfelvételi űrlaphoz irányítja a látogatót.
+
+Az asszisztens magyar nyelven kommunikál alapértelmezetten, de automatikusan átvált angolra, ha a látogató angolul szólal meg.
+
+2. Funkcionális követelmények
+2.1 Hanginterakció
+•	Valós idejű kétirányú hangkommunikáció a böngészőből (nem szükséges telefonszám vagy külső alkalmazás)
+•	Folyamatos audio streaming: mikrofon → szerver → AI → visszajátszás
+•	Megszakításkezelés: ha a felhasználó közbeszól, az asszisztens megáll
+•	Hangszemélyiség: természetes, magabiztos, üzleti hangvétel
+2.2 Nyelvi viselkedés
+•	Alapértelmezett nyelv: magyar
+•	Automatikus nyelvfelismerés: ha a látogató angolul szólal meg, az asszisztens angolra vált
+•	Rövid, lényegre törő válaszok — hangformátumhoz optimalizálva (1–3 mondat)
+2.3 Tartalom & tudásbázis
+•	ThinkAI szolgáltatások: egyedi AI fejlesztés, pályázati tanácsadás, EAISY termékcsalád
+•	Munkamódszer: Audit → Prezentáció → Kiválasztás → Megvalósítás + pénzvisszafizetési garancia
+•	Kiemelt projektek: Smart Számla Értesítő, Egészségügyi Asszisztens, Marketing Disztribútor
+•	Célszektorok: gyártás, logisztika, pénzügy & jog
+•	Partnerek: BDPST Koncept, Develor, WSZL, ClearService, Duna Autó
+•	CTA: hello@thinkai.hu és az ajánlatkérő űrlap
+2.4 Frontend widget
+•	Egyszerű "Beszélj velünk" gomb a weboldalon (jobb alsó sarok)
+•	Állapotjelzés: inaktív / csatlakozás / aktív / befejezve
+•	Leállítás gomb
+•	Hibaüzenet, ha a kapcsolat nem jön létre
+•	Mikrofon-engedélykérés kezelése
+
+3. Technikai architektúra
+3.1 Rendszerábra
+Böngésző (mikrofon)
+    ↓  WebSocket (audio stream)
+Railway szerver (Pipecat pipeline)
+    ├─ Deepgram STT  (hu/en)
+    ├─ Claude Sonnet (rendszerprompt)
+    └─ Cartesia TTS  (magyar hang)
+    ↓  WebSocket (audio stream vissza)
+Böngésző (hangszóró)
+
+3.2 Komponensek
+Réteg	Eszköz / Szolgáltatás	Indoklás
+Frontend	Next.js / Vercel	Meglévő infrastruktúra, GitHub push = deploy
+Voice kliens	@pipecat-ai/client-web	Kész JS könyvtár, kezeli a böngésző audio-t
+Backend	Pipecat + FastAPI	Teljes voice pipeline keretrendszer, Railway-en fut
+STT	Deepgram Nova-2	Legjobb valós idejű latencia, magyar nyelv támogatás
+LLM	Claude Sonnet 4.6	Eszközhívás, hosszú kontextus, magyar tudás
+TTS	Cartesia	Alacsony latencia (~200ms), magyar hangok
+Hosting	Railway	Perzisztens WebSocket, egyszerű deploy, ~$5/hó
+
+4. Claude rendszerprompt
+Az alábbi rendszerprompt kerül beállításra a Claude API hívásakor:
+
+Te a ThinkAI digitális asszisztense vagy, egy magyar AI automatizációs cég virtuális képviselője.
+
+SZEMÉLYISÉG:
+- Magabiztos, barátságos, szakmai
+- Rövid, lényegre törő válaszok (1–3 mondat) — hangalapú asszisztens vagy
+- Lelkes, de nem tolakodó
+- Ha valami nem egyértelmű, tegyél fel EGY kérdést egyszerre
+
+NYITÓ MONDAT: "Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?"
+
+CTA: ha a látogató érdeklődik → "Töltsd ki az ajánlatkérő űrlapot a weboldalon!"
+vagy: "Írj nekünk a hello@thinkai.hu e-mail címre."
+
+5. Megvalósítási ütemterv
+1. fázis — Fiókok és API kulcsok (1–2 óra)
+1.	Deepgram fiók létrehozása → API kulcs generálása
+2.	Cartesia fiók létrehozása → API kulcs, magyar hang kiválasztása
+3.	Railway fiók létrehozása → GitHub repo csatlakoztatása
+4.	Meglévő Anthropic API kulcs ellenőrzése
+2. fázis — Backend fejlesztés (1 nap)
+5.	Python projekt létrehozása, virtuális környezet beállítása
+6.	Pipecat telepítése: pip install pipecat-ai[deepgram,anthropic,cartesia,websockets]
+7.	server.py megírása: FastAPI + WebSocket endpoint (/ws)
+8.	Deepgram STT konfiguráció: language=hu, detect_language=true
+9.	Claude konfiguráció: rendszerprompt, max_tokens=150
+10.	Cartesia TTS konfiguráció: magyar hang, streaming
+11.	Pipecat pipeline összeállítása
+12.	Helyi tesztelés
+3. fázis — Frontend widget (1 nap)
+13.	@pipecat-ai/client-web telepítése a Next.js projektbe
+14.	VoiceWidget komponens létrehozása
+15.	Állapotkezelés: idle / connecting / active / ended
+16.	Mikrofon-engedélykérés kezelése
+17.	Helyi tesztelés a backend ellen
+4. fázis — Deploy és összekötés (fél nap)
+18.	requirements.txt és Procfile létrehozása
+19.	GitHub push → Railway automatikus deploy
+20.	API kulcsok beállítása Railway dashboard-on
+21.	NEXT_PUBLIC_WS_URL env változó beállítása Vercel-en
+22.	Végponttól-végpontig tesztelés az éles URL-en
+5. fázis — Csiszolás (fél nap)
+23.	Mobilon tesztelés (iOS Safari mikrofon-engedélyek)
+24.	Magyar hang minőségének ellenőrzése, esetleges hangcsere
+25.	Hibakezelés és fallback üzenetek
+26.	Widget elhelyezése a weboldalon (jobb alsó sarok)
+27.	Belső tesztelés, visszajelzések
+
+6. Költségbecslés
+6.1 Infrastruktúra (fix havi költség)
+Komponens	Díjszabás	Havi (fix)
+Railway (backend szerver)	Starter ~$5/hó	~$5
+Vercel (frontend)	Ingyenes / Pro $20/hó	$0–20
+Domain / SSL	Vercel biztosítja	$0
+
+6.2 Forgalomalapú API költségek
+Modell: 20 hívás/nap × 5 perc/hívás × 20 munkanap = ~2 000 perc/hó
+
+Szolgáltatás	Díjszabás	Havi becslés
+Deepgram STT	$0.0059/perc	~$12
+Claude Sonnet 4.6	$3/M input + $15/M output token	~$20–40
+Cartesia TTS	$15/1M karakter	~$15–25
+ÖSSZESEN (API)		~$47–77/hó
+MINDÖSSZESEN		~$52–102/hó
+
+Összehasonlítás: VAPI platform ugyanekkora forgalomnál
+VAPI: $0.05/perc × 2 000 perc = $100 alap + API költségek = ~$250–350/hó
+Saját megoldás: ~$52–102/hó — 3–4x olcsóbb és teljes kontroll
+
+7. Jövőbeli fejlesztési lehetőségek
+A prototípus után könnyen bővíthető a rendszer:
+
+•	Eszközhívások: ajánlatkérési adatok mentése Supabase-be közvetlenül a hívás során
+•	Calendly integráció: időpontfoglalás hangból
+•	Telefonos verzió: Telnyx BYOC SIP trunk bekötésével magyar telefonszámra is kiterjeszthető
+•	Többnyelvűség: automatikus nyelvfelismerés finomhangolása
+•	Elemzés: hívások mentése, átirat generálás, konverziók mérése
+•	Iparági verziók: ugyanez a rendszer más ügyfelek számára (fogászat, könyvelés, ügyfélszolgálat)
+
+8. Következő lépések
+28.	API kulcsok beszerzése (Deepgram, Cartesia) — 1–2 óra
+29.	Railway és Vercel fiókok ellenőrzése / létrehozása
+30.	Fejlesztés indítása a részletes ütemterv alapján
+31.	Prototípus bemutatója ~3–4 munkanap múlva
+
+ThinkAI Kft.  |  hello@thinkai.hu  |  thinkai.hu  |  Budapest, 2026

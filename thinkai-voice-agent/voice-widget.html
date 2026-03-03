@@ -463,9 +463,19 @@
             'use strict';
 
             // ── Config ─────────────────────────────────────────────
+            // Automatically uses the correct URL locally and on Railway:
+            //   local:      ws://localhost:8000/ws
+            //   production: wss://xxx.railway.app/ws
             const WS_URL = (typeof NEXT_PUBLIC_WS_URL !== 'undefined')
                 ? NEXT_PUBLIC_WS_URL
-                : 'ws://localhost:8765';
+                : (() => {
+                    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+                    const host = location.hostname;
+                    const port = (location.port && location.port !== '80' && location.port !== '443')
+                        ? ':8000'   // local dev: HTTP server on 3000, backend on 8000
+                        : '';
+                    return `${proto}://${host}${port}/ws`;
+                })();
             const SAMPLE_RATE = 16000;
 
             // ── State ──────────────────────────────────────────────

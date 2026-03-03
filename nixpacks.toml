@@ -1,0 +1,8 @@
+[phases.install]
+cmds = ["pip install -r thinkai-voice-agent/requirements.txt"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "uvicorn thinkai-voice-agent.server:app --host 0.0.0.0 --port $PORT"

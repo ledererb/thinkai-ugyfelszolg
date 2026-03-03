@@ -1,23 +1,33 @@
-# Python virtual environment
-pyvenv.cfg
+# Environment
+.env
+.env.*
 
 # Python
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-*.egg-info/
+.Python
+
+# Virtualenv
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution
 dist/
 build/
-*.egg
+*.egg-info/
 
-
-# Node modules
-node_modules/
+# IDE
+.vscode/
+.idea/
+*.iml
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Project Docs
-segítség.txt
+# Logs
+*.log

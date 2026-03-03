@@ -1,17 +1,19 @@
 """
 ThinkAI Voice Agent — Backend Server
-FastAPI health check + Pipecat WebSocket voice pipeline
+FastAPI + Pipecat WebSocket voice pipeline on a single port.
+
+Local:  uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+Railway: uvicorn server:app --host 0.0.0.0 --port $PORT
 """
 
 import asyncio
 import os
-import sys
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from loguru import logger
 
-# Load environment variables from .env
+# Load .env (only used locally; Railway injects env vars directly)
 load_dotenv()
 
 # ── FastAPI app ──────────────────────────────────────────────────────────────
@@ -25,13 +27,14 @@ async def health_check():
     return {"status": "ok", "service": "thinkai-voice-agent"}
 
 
-# ── Pipecat Voice Pipeline ──────────────────────────────────────────────────
+# ── Pipecat pipeline factory ─────────────────────────────────────────────────
 
-async def run_voice_pipeline():
-    """Start the Pipecat WebSocket voice pipeline on port 8765."""
+async def run_pipeline_for_client(websocket: WebSocket):
+    """Spin up a Pipecat pipeline for a single connected WebSocket client."""
     from deepgram import LiveOptions
 
     from pipecat.audio.vad.silero import SileroVADAnalyzer
+    from pipecat.frames.frames import TextFrame
     from pipecat.pipeline.pipeline import Pipeline
     from pipecat.pipeline.runner import PipelineRunner
     from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -41,28 +44,26 @@ async def run_voice_pipeline():
         LLMUserAggregatorParams,
     )
     from pipecat.serializers.protobuf import ProtobufFrameSerializer
-    from pipecat.frames.frames import LLMMessagesFrame, TextFrame
     from pipecat.services.anthropic.llm import AnthropicLLMService
     from pipecat.services.cartesia.tts import CartesiaTTSService
     from pipecat.services.deepgram.stt import DeepgramSTTService
-    from pipecat.transports.websocket.server import (
-        WebsocketServerParams,
-        WebsocketServerTransport,
+    from pipecat.transports.websocket.fastapi import (
+        FastAPIWebsocketParams,
+        FastAPIWebsocketTransport,
     )
 
-    # ── Transport ────────────────────────────────────────────────────────
-    transport = WebsocketServerTransport(
-        params=WebsocketServerParams(
+    # ── Transport (FastAPI WebSocket — same port as HTTP) ─────────────────
+    transport = FastAPIWebsocketTransport(
+        websocket=websocket,
+        params=FastAPIWebsocketParams(
             serializer=ProtobufFrameSerializer(),
-            audio_in_enabled=True,       # ← CRITICAL: accept incoming audio from browser
+            audio_in_enabled=True,
             audio_out_enabled=True,
             add_wav_header=False,
-            vad_enabled=True,            # enable Voice Activity Detection
+            vad_enabled=True,
             vad_analyzer=SileroVADAnalyzer(),
-            vad_audio_passthrough=True,  # pass audio frames through to STT after VAD
+            vad_audio_passthrough=True,
         ),
-        host="0.0.0.0",
-        port=8765,
     )
 
     # ── Deepgram STT ─────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ async def run_voice_pipeline():
         api_key=os.getenv("DEEPGRAM_API_KEY"),
         live_options=LiveOptions(
             model="nova-2",
-            language="multi",        # automatikus nyelvfelismerés (hu + en + több)
+            language="multi",        # automatikus nyelvfelismerés (hu + en)
             punctuate=True,
             smart_format=True,
         ),
@@ -91,7 +92,7 @@ async def run_voice_pipeline():
         voice_id=os.getenv("CARTESIA_VOICE_ID"),
     )
 
-    # ── Context & Aggregators ────────────────────────────────────────────
+    # ── System prompt ─────────────────────────────────────────────────────
     messages = [
         {
             "role": "system",
@@ -127,20 +128,20 @@ async def run_voice_pipeline():
     # ── Pipeline ─────────────────────────────────────────────────────────
     pipeline = Pipeline(
         [
-            transport.input(),   # Receive audio from client
-            stt,                 # Speech-to-text (Deepgram)
-            user_aggregator,     # Add user message to context
-            llm,                 # Language model (Claude)
-            tts,                 # Text-to-speech (Cartesia)
-            transport.output(),  # Send audio back to client
-            assistant_aggregator,  # Add bot response to context
+            transport.input(),
+            stt,
+            user_aggregator,
+            llm,
+            tts,
+            transport.output(),
+            assistant_aggregator,
         ]
     )
 
     task = PipelineTask(
         pipeline,
         params=PipelineParams(
-            allow_interruptions=True,    # bot megáll ha a user közbeszól
+            allow_interruptions=True,
             enable_metrics=True,
             enable_usage_metrics=True,
         ),
@@ -151,11 +152,9 @@ async def run_voice_pipeline():
         logger.info("Client connected — scheduling greeting")
 
         async def send_greeting():
-            # Small delay so pipeline is fully up before we queue frames
             await asyncio.sleep(0.5)
             greeting = "Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?"
-            logger.info(f"Sending greeting TTS: {greeting}")
-            # Only TextFrame → TTS; LLMMessagesFrame is added separately to context
+            logger.info(f"Sending greeting: {greeting}")
             await task.queue_frames([TextFrame(text=greeting)])
 
         asyncio.create_task(send_greeting())
@@ -164,27 +163,31 @@ async def run_voice_pipeline():
     async def on_client_disconnected(transport, client):
         logger.info("Client disconnected")
 
-    # ── Run ───────────────────────────────────────────────────────────────
-    # Ignore SIGINT in the pipeline task — only uvicorn should handle it.
-    import signal
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-
     runner = PipelineRunner(handle_sigint=False)
-    logger.info("Starting Pipecat voice pipeline on ws://0.0.0.0:8765")
+    logger.info("Starting pipeline for client")
     await runner.run(task)
 
 
-# ── Startup: launch Pipecat alongside FastAPI ────────────────────────────────
+# ── WebSocket endpoint (same port as FastAPI HTTP) ──────────────────────────
 
-@app.on_event("startup")
-async def startup_event():
-    """Launch the Pipecat pipeline as a background task alongside FastAPI."""
-    asyncio.create_task(run_voice_pipeline())
-    logger.info("Voice pipeline background task started")
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """Single WebSocket endpoint for the Pipecat voice pipeline."""
+    await websocket.accept()
+    logger.info(f"WebSocket connection: {websocket.client}")
+    try:
+        await run_pipeline_for_client(websocket)
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"Pipeline error: {e}")
 
+
+# ── Local dev entry point ────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import uvicorn
 
-    logger.info("Starting ThinkAI Voice Agent server...")
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    logger.info(f"Starting ThinkAI Voice Agent on port {port}...")
+    uvicorn.run("server:app", host="0.0.0.0", port=port, reload=True)
