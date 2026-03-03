@@ -70,7 +70,7 @@ async def run_voice_pipeline():
         api_key=os.getenv("DEEPGRAM_API_KEY"),
         live_options=LiveOptions(
             model="nova-2",
-            language="hu",
+            language="multi",        # automatikus nyelvfelismerés (hu + en + több)
             punctuate=True,
             smart_format=True,
         ),
@@ -105,17 +105,11 @@ async def run_voice_pipeline():
                 "NYELV:\n"
                 "- Alapértelmezett nyelv: magyar\n"
                 "- Ha a felhasználó angolul szólal meg, válaszolj angolul\n\n"
-                "NYITÓ MONDAT (ezt mondd elsőként, amikor a felhasználó csatlakozik):\n"
-                "\"Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?\"\n\n"
-                "TUDÁSBÁZIS:\n"
-                "- ThinkAI szolgáltatások: egyedi AI fejlesztés, pályázati tanácsadás, EAISY termékcsalád\n"
-                "- Munkamódszer: Audit → Prezentáció → Kiválasztás → Megvalósítás + pénzvisszafizetési garancia\n"
-                "- Kiemelt projektek: Smart Számla Értesítő, Egészségügyi Asszisztens, Marketing Disztribútor\n"
-                "- Célszektorok: gyártás, logisztika, pénzügy & jog\n"
-                "- Partnerek: BDPST Koncept, Develor, WSZL, ClearService, Duna Autó\n\n"
-                "CTA (ha a látogató érdeklődik):\n"
+                "NYITÓ MONDAT: \"Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?\"\n\n"
+                "CTA: ha a látogató érdeklődik:\n"
                 "- \"Töltsd ki az ajánlatkérő űrlapot a weboldalon!\"\n"
-                "- vagy: \"Írj nekünk a hello@thinkai.hu e-mail címre.\""
+                "- vagy: \"Írj nekünk a hello@thinkai.hu e-mail címre.\"\n\n"
+                "FONTOS: Ha nem tudod biztosan a választ, ne találj ki adatot — mondd udvariasan, hogy nem rendelkezel ezzel az információval."
             ),
         },
     ]
@@ -146,6 +140,7 @@ async def run_voice_pipeline():
     task = PipelineTask(
         pipeline,
         params=PipelineParams(
+            allow_interruptions=True,    # bot megáll ha a user közbeszól
             enable_metrics=True,
             enable_usage_metrics=True,
         ),
