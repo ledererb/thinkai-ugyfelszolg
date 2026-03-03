@@ -54,8 +54,12 @@ async def run_voice_pipeline():
     transport = WebsocketServerTransport(
         params=WebsocketServerParams(
             serializer=ProtobufFrameSerializer(),
+            audio_in_enabled=True,       # ← CRITICAL: accept incoming audio from browser
             audio_out_enabled=True,
             add_wav_header=False,
+            vad_enabled=True,            # enable Voice Activity Detection
+            vad_analyzer=SileroVADAnalyzer(),
+            vad_audio_passthrough=True,  # pass audio frames through to STT after VAD
         ),
         host="0.0.0.0",
         port=8765,
@@ -149,17 +153,17 @@ async def run_voice_pipeline():
 
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
-        logger.info("Client connected")
-        # Send initial greeting via TTS
-        greeting = "Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?"
-        await task.queue_frames(
-            [
-                LLMMessagesFrame(
-                    [{"role": "assistant", "content": greeting}]
-                ),
-                TextFrame(text=greeting),
-            ]
-        )
+        logger.info("Client connected — scheduling greeting")
+
+        async def send_greeting():
+            # Small delay so pipeline is fully up before we queue frames
+            await asyncio.sleep(0.5)
+            greeting = "Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?"
+            logger.info(f"Sending greeting TTS: {greeting}")
+            # Only TextFrame → TTS; LLMMessagesFrame is added separately to context
+            await task.queue_frames([TextFrame(text=greeting)])
+
+        asyncio.create_task(send_greeting())
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):

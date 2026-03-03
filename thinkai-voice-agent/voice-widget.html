@@ -622,7 +622,14 @@
             // ── Audio Playback Queue ───────────────────────────────
             function queueAudio(audioBytes, sampleRate) {
                 if (!audioContext) return;
-                const pcm16 = new Int16Array(audioBytes.buffer, audioBytes.byteOffset, audioBytes.byteLength / 2);
+                // IMPORTANT: audioBytes is a Uint8Array from protobuf with a non-zero
+                // byteOffset inside a shared buffer. Int16Array requires 2-byte alignment,
+                // so we must copy into a fresh independent ArrayBuffer first.
+                const cleanBuf = audioBytes.buffer.slice(
+                    audioBytes.byteOffset,
+                    audioBytes.byteOffset + audioBytes.byteLength
+                );
+                const pcm16 = new Int16Array(cleanBuf);
                 const float32 = new Float32Array(pcm16.length);
                 for (let i = 0; i < pcm16.length; i++) {
                     float32[i] = pcm16[i] / 32768.0;
@@ -655,12 +662,33 @@
             }
 
             // ── Microphone ─────────────────────────────────────────
+            // Synchronous linear interpolation downsample (no async, no event loop blocking)
+            function downsampleLinear(inBuf, inRate, outRate) {
+                if (inRate === outRate) return inBuf;
+                const ratio = inRate / outRate;
+                const outLen = Math.round(inBuf.length / ratio);
+                const out = new Float32Array(outLen);
+                for (let i = 0; i < outLen; i++) {
+                    const pos = i * ratio;
+                    const idx = Math.floor(pos);
+                    const frac = pos - idx;
+                    const a = inBuf[idx] || 0;
+                    const b = inBuf[idx + 1] || 0;
+                    out[i] = a + frac * (b - a);
+                }
+                return out;
+            }
+
             async function startMicrophone() {
-                audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
+                // Use the browser's native sample rate — do NOT force 16kHz
+                // because most browsers ignore the constraint and produce silence.
+                audioContext = new AudioContext();
+                const nativeSampleRate = audioContext.sampleRate;
+                console.log('[ThinkAI] AudioContext native sample rate:', nativeSampleRate);
+
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         channelCount: 1,
-                        sampleRate: SAMPLE_RATE,
                         echoCancellation: true,
                         noiseSuppression: true,
                         autoGainControl: true,
@@ -669,14 +697,19 @@
 
                 const source = audioContext.createMediaStreamSource(mediaStream);
                 processor = audioContext.createScriptProcessor(4096, 1, 1);
+
                 processor.onaudioprocess = (e) => {
                     if (state !== 'active' || !ws || ws.readyState !== WebSocket.OPEN) return;
                     const float32 = e.inputBuffer.getChannelData(0);
-                    const pcm16 = float32ToPCM16(float32);
+                    // Synchronous resample to 16kHz
+                    const resampled = downsampleLinear(float32, nativeSampleRate, SAMPLE_RATE);
+                    const pcm16 = float32ToPCM16(resampled);
                     ws.send(encodeAudioFrame(pcm16));
                 };
+
                 source.connect(processor);
                 processor.connect(audioContext.destination);
+                console.log('[ThinkAI] Microphone started, streaming audio to server...');
             }
 
             function stopMicrophone() {
