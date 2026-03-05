@@ -90,6 +90,7 @@ async def run_pipeline_for_client(websocket: WebSocket):
     tts = CartesiaTTSService(
         api_key=os.getenv("CARTESIA_API_KEY"),
         voice_id=os.getenv("CARTESIA_VOICE_ID"),
+        model="sonic-3",
     )
 
     # ── System prompt ─────────────────────────────────────────────────────
