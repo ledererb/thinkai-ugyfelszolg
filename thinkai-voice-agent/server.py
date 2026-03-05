@@ -63,6 +63,8 @@ async def run_pipeline_for_client(websocket: WebSocket):
             vad_enabled=True,
             vad_analyzer=SileroVADAnalyzer(),
             vad_audio_passthrough=True,
+            audio_out_sample_rate=24000,   # ← match TTS
+            audio_out_encoding="pcm_s16le", # ← match TTS
         ),
     )
 
@@ -91,6 +93,9 @@ async def run_pipeline_for_client(websocket: WebSocket):
         api_key=os.getenv("CARTESIA_API_KEY"),
         voice_id=os.getenv("CARTESIA_VOICE_ID"),
         model="sonic-3",
+        language="hu",              # magyar kiejtés
+        sample_rate=24000,          # match Cartesia's native quality
+        encoding="pcm_s16le",       # explicit encoding
     )
 
     # ── System prompt ─────────────────────────────────────────────────────
