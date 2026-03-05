@@ -93,7 +93,9 @@ async def run_pipeline_for_client(websocket: WebSocket):
         api_key=os.getenv("CARTESIA_API_KEY"),
         voice_id=os.getenv("CARTESIA_VOICE_ID"),
         model="sonic-3",
-        language="hu",              # magyar kiejtés
+        params=CartesiaTTSService.InputParams(
+            language=None,          # ← auto-detect: sonic-3 infers from text
+        ),
         sample_rate=24000,          # match Cartesia's native quality
         encoding="pcm_s16le",       # explicit encoding
     )
