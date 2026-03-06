@@ -78,11 +78,14 @@ async def run_pipeline_for_client(websocket: WebSocket):
     )
 
     # ── Deepgram STT ─────────────────────────────────────────────────────
+    # Note: language="multi" does NOT auto-detect Hungarian (only 10 core
+    # languages). Using "hu" explicitly for Hungarian. Claude can still
+    # understand English even when transcribed through the HU model.
     stt = DeepgramSTTService(
         api_key=os.getenv("DEEPGRAM_API_KEY"),
         live_options=LiveOptions(
             model="nova-3",
-            language="multi",           # multilingual (hu + en)
+            language="hu",
             punctuate=True,
             smart_format=True,
         ),
