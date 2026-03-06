@@ -58,7 +58,15 @@ async def run_pipeline_for_client(websocket: WebSocket):
     )
 
     # ── Shared VAD analyzer (one instance for both transport and context) ──
-    vad = SileroVADAnalyzer()
+    # Tuned for faster endpointing: shorter min_silence = quicker response start
+    vad = SileroVADAnalyzer(
+        params=SileroVADAnalyzer.VADParams(
+            min_volume=0.4,          # sensitivity threshold
+            start_secs=0.2,          # how fast to detect speech start
+            stop_secs=0.8,           # silence before "user stopped" (lower = faster)
+            confidence=0.7,          # VAD confidence threshold
+        )
+    )
 
     # ── Transport (FastAPI WebSocket — same port as HTTP) ─────────────
     transport = FastAPIWebsocketTransport(
@@ -95,11 +103,12 @@ async def run_pipeline_for_client(websocket: WebSocket):
     )
 
     # ── Anthropic Claude LLM ─────────────────────────────────────────────
+    # Haiku: ~200-400ms TTFB vs Sonnet's ~1s — critical for voice latency
     llm = AnthropicLLMService(
         api_key=os.getenv("ANTHROPIC_API_KEY"),
-        model="claude-sonnet-4-20250514",
+        model="claude-3-5-haiku-20241022",
         params=AnthropicLLMService.InputParams(
-            max_tokens=150,
+            max_tokens=80,           # shorter = faster streaming for voice
         ),
     )
 
@@ -109,10 +118,12 @@ async def run_pipeline_for_client(websocket: WebSocket):
         voice_id=os.getenv("CARTESIA_VOICE_ID"),
         model="sonic-3",
         params=CartesiaTTSService.InputParams(
-            language=None,          # ← auto-detect: sonic-3 infers from text
+            language=None,          # auto-detect: sonic-3 infers from text
+            speed="slow",           # slightly slower = more natural, human-like pacing
+            emotion=["positivity:high", "curiosity:medium"],  # warm and engaged tone
         ),
-        sample_rate=24000,          # match Cartesia's native quality
-        encoding="pcm_s16le",       # explicit encoding
+        sample_rate=24000,
+        encoding="pcm_s16le",
     )
 
     # ── System prompt ─────────────────────────────────────────────────────
@@ -120,9 +131,16 @@ async def run_pipeline_for_client(websocket: WebSocket):
 
 SZEMÉLYISÉG:
 - Magabiztos, barátságos, szakmai
-- Rövid, lényegre törő válaszok (1–3 mondat) — hangalapú asszisztens vagy
+- Rövid, lényegre törő válaszok (1–2 mondat MAX) — hangalapú asszisztens vagy, NE ÍRJÁL ESSZÉKET
 - Lelkes, de nem tolakodó
 - Ha valami nem egyértelmű, tegyél fel EGY kérdést egyszerre
+
+BESZÉDSTÍLUS (nagyon fontos — hangalapú vagy!):
+- Használj természetes töltelékszavakat az elején: "Hát...", "Szóval...", "Nos...", "Ja, persze!", "Hmm, jó kérdés!"
+- NE kezdj minden mondatot azonnal a tényekkel — adj egy emberi bevezető pillanatot
+- Példák: "Nos, ez egy jó kérdés! Szóval..." vagy "Ja, persze! Tehát..."
+- Kerüld a robotos, felsorolás-szerű válaszokat — beszélj úgy, mintha egy barátságos kolléga lennél
+- Röviden és tömören fogalmazz, ne legyen több mint 2 mondat egy válasz
 
 NYELV:
 - Alapértelmezett nyelv: magyar
