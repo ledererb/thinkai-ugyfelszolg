@@ -41,8 +41,6 @@ async def serve_widget():
 
 async def run_pipeline_for_client(websocket: WebSocket):
     """Spin up a Pipecat pipeline for a single connected WebSocket client."""
-    from deepgram import LiveOptions
-
     from pipecat.audio.vad.silero import SileroVADAnalyzer
     from pipecat.frames.frames import TextFrame
     from pipecat.pipeline.pipeline import Pipeline
@@ -52,7 +50,8 @@ async def run_pipeline_for_client(websocket: WebSocket):
     from pipecat.serializers.protobuf import ProtobufFrameSerializer
     from pipecat.services.anthropic.llm import AnthropicLLMService
     from pipecat.services.cartesia.tts import CartesiaTTSService
-    from pipecat.services.deepgram.stt import DeepgramSTTService
+    from pipecat.services.google.stt import GoogleSTTService
+    from pipecat.transcriptions.language import Language
     from pipecat.transports.websocket.fastapi import (
         FastAPIWebsocketParams,
         FastAPIWebsocketTransport,
@@ -77,17 +76,21 @@ async def run_pipeline_for_client(websocket: WebSocket):
         ),
     )
 
-    # ── Deepgram STT ─────────────────────────────────────────────────────
-    # Note: language="multi" does NOT auto-detect Hungarian (only 10 core
-    # languages). Using "hu" explicitly for Hungarian. Claude can still
-    # understand English even when transcribed through the HU model.
-    stt = DeepgramSTTService(
-        api_key=os.getenv("DEEPGRAM_API_KEY"),
-        live_options=LiveOptions(
-            model="nova-3",
-            language="hu",
-            punctuate=True,
-            smart_format=True,
+    # ── Google Cloud STT ──────────────────────────────────────────────────
+    # Google STT V2 with multi-language detection (Hungarian + English).
+    # Supports credentials as JSON string (Railway env var) or file path.
+    google_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    google_creds_path = os.getenv(
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        str(Path(__file__).resolve().parent / "google-credentials.json"),
+    )
+    stt = GoogleSTTService(
+        credentials=google_creds,
+        credentials_path=google_creds_path if not google_creds else None,
+        params=GoogleSTTService.InputParams(
+            languages=[Language.HU, Language.EN],
+            enable_interim_results=True,
+            enable_automatic_punctuation=False,
         ),
     )
 

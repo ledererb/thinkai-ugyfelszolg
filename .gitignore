@@ -34,3 +34,4 @@ Thumbs.db
 .venv
 .venv-linux
 thinkai-voice-agent/.env
+thinkai-voice-agent/google-credentials.json
