@@ -82,7 +82,7 @@ async def run_pipeline_for_client(websocket: WebSocket):
         api_key=os.getenv("DEEPGRAM_API_KEY"),
         live_options=LiveOptions(
             model="nova-3",
-            language="multi",           # multilingual transcription
+            language="multi",           # multilingual (hu + en)
             punctuate=True,
             smart_format=True,
         ),
