@@ -38,11 +38,7 @@ async def run_pipeline_for_client(websocket: WebSocket):
     from pipecat.pipeline.pipeline import Pipeline
     from pipecat.pipeline.runner import PipelineRunner
     from pipecat.pipeline.task import PipelineParams, PipelineTask
-    from pipecat.processors.aggregators.llm_context import LLMContext
-    from pipecat.processors.aggregators.llm_response_universal import (
-        LLMContextAggregatorPair,
-        LLMUserAggregatorParams,
-    )
+    from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
     from pipecat.serializers.protobuf import ProtobufFrameSerializer
     from pipecat.services.anthropic.llm import AnthropicLLMService
     from pipecat.services.cartesia.tts import CartesiaTTSService
@@ -52,7 +48,10 @@ async def run_pipeline_for_client(websocket: WebSocket):
         FastAPIWebsocketTransport,
     )
 
-    # ── Transport (FastAPI WebSocket — same port as HTTP) ─────────────────
+    # ── Shared VAD analyzer (one instance for both transport and context) ──
+    vad = SileroVADAnalyzer()
+
+    # ── Transport (FastAPI WebSocket — same port as HTTP) ─────────────
     transport = FastAPIWebsocketTransport(
         websocket=websocket,
         params=FastAPIWebsocketParams(
@@ -61,7 +60,7 @@ async def run_pipeline_for_client(websocket: WebSocket):
             audio_out_enabled=True,
             add_wav_header=False,
             vad_enabled=True,
-            vad_analyzer=SileroVADAnalyzer(),
+            vad_analyzer=vad,
             vad_audio_passthrough=True,
             audio_out_sample_rate=24000,   # ← match TTS
             audio_out_encoding="pcm_s16le", # ← match TTS
@@ -123,26 +122,19 @@ async def run_pipeline_for_client(websocket: WebSocket):
         },
     ]
 
-    context = LLMContext(messages)
-    context_aggregator = LLMContextAggregatorPair(
-        context,
-        user_params=LLMUserAggregatorParams(
-            vad_analyzer=SileroVADAnalyzer(),
-        ),
-    )
-    user_aggregator = context_aggregator.user()
-    assistant_aggregator = context_aggregator.assistant()
+    context = OpenAILLMContext(messages)
+    context_aggregator = llm.create_context_aggregator(context)
 
     # ── Pipeline ─────────────────────────────────────────────────────────
     pipeline = Pipeline(
         [
             transport.input(),
             stt,
-            user_aggregator,
+            context_aggregator.user(),
             llm,
             tts,
             transport.output(),
-            assistant_aggregator,
+            context_aggregator.assistant(),
         ]
     )
 

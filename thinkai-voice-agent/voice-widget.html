@@ -486,9 +486,9 @@
             let processor = null;
             let FrameMsg = null;
 
-            // Audio queue for smooth playback
-            let audioQueue = [];
-            let isPlaying = false;
+            // Audio playback — time-based gapless scheduling
+            let playbackContext = null;
+            let nextPlayTime = 0;
 
             // Retry & timeout
             const MAX_RETRIES = 2;
@@ -629,12 +629,20 @@
                 return FrameMsg.encode(frame).finish();
             }
 
-            // ── Audio Playback Queue ───────────────────────────────
+            // ── Audio Playback — gapless time-based scheduling ────
+            const PLAYBACK_RATE = 24000; // must match server audio_out_sample_rate
+
+            function ensurePlaybackContext() {
+                if (!playbackContext || playbackContext.state === 'closed') {
+                    playbackContext = new AudioContext({ sampleRate: PLAYBACK_RATE });
+                }
+                return playbackContext;
+            }
+
             function queueAudio(audioBytes, sampleRate) {
-                if (!audioContext) return;
-                // IMPORTANT: audioBytes is a Uint8Array from protobuf with a non-zero
-                // byteOffset inside a shared buffer. Int16Array requires 2-byte alignment,
-                // so we must copy into a fresh independent ArrayBuffer first.
+                const ctx = ensurePlaybackContext();
+                // audioBytes is a Uint8Array from protobuf that may have a
+                // non-zero byteOffset. Copy into an aligned independent buffer.
                 const cleanBuf = audioBytes.buffer.slice(
                     audioBytes.byteOffset,
                     audioBytes.byteOffset + audioBytes.byteLength
@@ -644,21 +652,23 @@
                 for (let i = 0; i < pcm16.length; i++) {
                     float32[i] = pcm16[i] / 32768.0;
                 }
-                const buffer = audioContext.createBuffer(1, float32.length, sampleRate || SAMPLE_RATE);
-                buffer.getChannelData(0).set(float32);
-                audioQueue.push(buffer);
-                if (!isPlaying) playNext();
-            }
 
-            function playNext() {
-                if (audioQueue.length === 0) { isPlaying = false; return; }
-                isPlaying = true;
-                const buffer = audioQueue.shift();
-                const source = audioContext.createBufferSource();
+                const sr = sampleRate || PLAYBACK_RATE;
+                const buffer = ctx.createBuffer(1, float32.length, sr);
+                buffer.getChannelData(0).set(float32);
+
+                const source = ctx.createBufferSource();
                 source.buffer = buffer;
-                source.connect(audioContext.destination);
-                source.onended = playNext;
-                source.start();
+                source.connect(ctx.destination);
+
+                const now = ctx.currentTime;
+                // If nextPlayTime has fallen behind (gap in stream / first chunk),
+                // reset it with a tiny lead-in so the scheduler has breathing room.
+                if (nextPlayTime <= now) {
+                    nextPlayTime = now + 0.05; // 50 ms initial buffer
+                }
+                source.start(nextPlayTime);
+                nextPlayTime += buffer.duration;
             }
 
             // ── Transcript ─────────────────────────────────────────
@@ -726,8 +736,8 @@
                 if (processor) { processor.disconnect(); processor = null; }
                 if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
                 if (audioContext) { audioContext.close(); audioContext = null; }
-                audioQueue = [];
-                isPlaying = false;
+                if (playbackContext) { playbackContext.close(); playbackContext = null; }
+                nextPlayTime = 0;
             }
 
             // ── Error Toast ────────────────────────────────────────
