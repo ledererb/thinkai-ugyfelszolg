@@ -31,3 +31,6 @@ Thumbs.db
 
 # Logs
 *.log
+.venv
+.venv-linux
+thinkai-voice-agent/.env

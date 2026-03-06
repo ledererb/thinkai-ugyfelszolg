@@ -8,9 +8,11 @@ Railway: uvicorn server:app --host 0.0.0.0 --port $PORT
 
 import asyncio
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 from loguru import logger
 
 # Load .env (only used locally; Railway injects env vars directly)
@@ -20,11 +22,19 @@ load_dotenv()
 
 app = FastAPI(title="ThinkAI Voice Agent")
 
+THIS_DIR = Path(__file__).resolve().parent
+
 
 @app.get("/")
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok", "service": "thinkai-voice-agent"}
+
+
+@app.get("/widget", response_class=HTMLResponse)
+async def serve_widget():
+    """Serve voice-widget.html for local testing."""
+    return (THIS_DIR / "voice-widget.html").read_text(encoding="utf-8")
 
 
 # ── Pipecat pipeline factory ─────────────────────────────────────────────────
@@ -71,8 +81,8 @@ async def run_pipeline_for_client(websocket: WebSocket):
     stt = DeepgramSTTService(
         api_key=os.getenv("DEEPGRAM_API_KEY"),
         live_options=LiveOptions(
-            model="nova-2",
-            language="multi",        # automatikus nyelvfelismerés (hu + en)
+            model="nova-3",
+            language="multi",           # multilingual transcription
             punctuate=True,
             smart_format=True,
         ),
