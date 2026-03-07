@@ -1,133 +1,52 @@
 """
-ThinkAI Voice Agent — Backend Server
-FastAPI + Pipecat WebSocket voice pipeline on a single port.
-
-Local:  uvicorn server:app --host 0.0.0.0 --port 8000 --reload
-Railway: uvicorn server:app --host 0.0.0.0 --port $PORT
+ThinkAI Voice Agent — LiveKit Agents Server
+Real-time voice assistant powered by LiveKit + Google STT + Anthropic Claude + Cartesia TTS
 """
 
-import asyncio
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
 from loguru import logger
 
-# Load .env (only used locally; Railway injects env vars directly)
-load_dotenv()
-
-# ── FastAPI app ──────────────────────────────────────────────────────────────
-
-app = FastAPI(title="ThinkAI Voice Agent")
-
+# ── Load env ──────────────────────────────────────────────────────────────────
 THIS_DIR = Path(__file__).resolve().parent
+load_dotenv(THIS_DIR / ".env")
+
+# ── LiveKit Agents ────────────────────────────────────────────────────────────
+from livekit.agents import (
+    Agent,
+    AgentSession,
+    JobContext,
+    WorkerOptions,
+    cli,
+)
+
+from livekit.plugins import anthropic, cartesia, google, silero
+
+# ── Import tools ──────────────────────────────────────────────────────────────
+sys.path.insert(0, str(THIS_DIR))
+from tools import ALL_TOOLS
+
+# ── Google credentials setup ─────────────────────────────────────────────────
+def _setup_google_credentials():
+    """Write Google credentials from env var if present (for Railway/cloud)."""
+    creds_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    creds_path = THIS_DIR / "google-credentials.json"
+    if creds_json and not creds_path.exists():
+        creds_path.write_text(creds_json)
+    if creds_path.exists():
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(creds_path)
+
+_setup_google_credentials()
 
 
-@app.get("/")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "ok", "service": "thinkai-voice-agent"}
+# ═══════════════════════════════════════════════════════════════════════════════
+# SYSTEM PROMPT
+# ═══════════════════════════════════════════════════════════════════════════════
 
-
-@app.get("/widget", response_class=HTMLResponse)
-async def serve_widget():
-    """Serve voice-widget.html for local testing."""
-    return (THIS_DIR / "voice-widget.html").read_text(encoding="utf-8")
-
-
-# ── Pipecat pipeline factory ─────────────────────────────────────────────────
-
-async def run_pipeline_for_client(websocket: WebSocket):
-    """Spin up a Pipecat pipeline for a single connected WebSocket client."""
-    from pipecat.audio.vad.silero import SileroVADAnalyzer
-    from pipecat.frames.frames import TextFrame
-    from pipecat.pipeline.pipeline import Pipeline
-    from pipecat.pipeline.runner import PipelineRunner
-    from pipecat.pipeline.task import PipelineParams, PipelineTask
-    from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-    from pipecat.serializers.protobuf import ProtobufFrameSerializer
-    from pipecat.services.anthropic.llm import AnthropicLLMService
-    from pipecat.services.cartesia.tts import CartesiaTTSService
-    from pipecat.services.google.stt import GoogleSTTService
-    from pipecat.transcriptions.language import Language
-    from pipecat.transports.websocket.fastapi import (
-        FastAPIWebsocketParams,
-        FastAPIWebsocketTransport,
-    )
-
-    # ── Shared VAD analyzer (one instance for both transport and context) ──
-    # Tuned for faster endpointing: shorter min_silence = quicker response start
-    vad = SileroVADAnalyzer(
-        params=SileroVADAnalyzer.VADParams(
-            min_volume=0.4,          # sensitivity threshold
-            start_secs=0.2,          # how fast to detect speech start
-            stop_secs=0.8,           # silence before "user stopped" (lower = faster)
-            confidence=0.7,          # VAD confidence threshold
-        )
-    )
-
-    # ── Transport (FastAPI WebSocket — same port as HTTP) ─────────────
-    transport = FastAPIWebsocketTransport(
-        websocket=websocket,
-        params=FastAPIWebsocketParams(
-            serializer=ProtobufFrameSerializer(),
-            audio_in_enabled=True,
-            audio_out_enabled=True,
-            add_wav_header=False,
-            vad_enabled=True,
-            vad_analyzer=vad,
-            vad_audio_passthrough=True,
-            audio_out_sample_rate=24000,   # ← match TTS
-            audio_out_encoding="pcm_s16le", # ← match TTS
-        ),
-    )
-
-    # ── Google Cloud STT ──────────────────────────────────────────────────
-    # Google STT V2 with multi-language detection (Hungarian + English).
-    # Supports credentials as JSON string (Railway env var) or file path.
-    google_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-    google_creds_path = os.getenv(
-        "GOOGLE_APPLICATION_CREDENTIALS",
-        str(Path(__file__).resolve().parent / "google-credentials.json"),
-    )
-    stt = GoogleSTTService(
-        credentials=google_creds,
-        credentials_path=google_creds_path if not google_creds else None,
-        params=GoogleSTTService.InputParams(
-            languages=[Language.HU, Language.EN],
-            enable_interim_results=True,
-            enable_automatic_punctuation=False,
-        ),
-    )
-
-    # ── Anthropic Claude LLM ─────────────────────────────────────────────
-    # Haiku: ~200-400ms TTFB vs Sonnet's ~1s — critical for voice latency
-    llm = AnthropicLLMService(
-        api_key=os.getenv("ANTHROPIC_API_KEY"),
-        model="claude-3-5-haiku-20241022",
-        params=AnthropicLLMService.InputParams(
-            max_tokens=80,           # shorter = faster streaming for voice
-        ),
-    )
-
-    # ── Cartesia TTS ─────────────────────────────────────────────────────
-    tts = CartesiaTTSService(
-        api_key=os.getenv("CARTESIA_API_KEY"),
-        voice_id=os.getenv("CARTESIA_VOICE_ID"),
-        model="sonic-3",
-        params=CartesiaTTSService.InputParams(
-            language=None,          # auto-detect: sonic-3 infers from text
-            speed="slow",           # slightly slower = more natural, human-like pacing
-            emotion=["positivity:high", "curiosity:medium"],  # warm and engaged tone
-        ),
-        sample_rate=24000,
-        encoding="pcm_s16le",
-    )
-
-    # ── System prompt ─────────────────────────────────────────────────────
-    system_prompt = """Te a ThinkAI digitális asszisztense vagy, egy magyar AI automatizációs cég virtuális képviselője.
+SYSTEM_PROMPT = """Te a ThinkAI digitális asszisztense vagy, egy magyar AI automatizációs cég virtuális képviselője.
 
 SZEMÉLYISÉG:
 - Magabiztos, barátságos, szakmai
@@ -145,8 +64,6 @@ BESZÉDSTÍLUS (nagyon fontos — hangalapú vagy!):
 NYELV:
 - Alapértelmezett nyelv: magyar
 - Ha a felhasználó angolul szólal meg, válaszolj angolul
-
-NYITÓ MONDAT: "Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?"
 
 ═══════════════════════════════════════════════
 A THINKAIRÓL
@@ -231,83 +148,124 @@ CTA – ha a látogató érdeklődik:
 
 FONTOS:
 - Ha nem tudod biztosan a választ, ne találj ki adatot — mondd udvariasan, hogy nem rendelkezel ezzel az információval.
-- Ha konkrét árat kérdeznek, mondd, hogy az árazás projektfüggő, és ajánlatkéréssel kaphatnak személyre szabott ajánlatot.
+- Ha konkrét árat kérdeznek, használd a lookup_info eszközt a "pricing" témával.
 - Mindig hangsúlyozd a 100% pénzvisszafizetési garanciát az auditnál, ha releváns.
+
+═════════════════════════════════════════════
+KÉPESSÉGEID (eszközök, amiket használhatsz)
+═════════════════════════════════════════════
+
+Te nem csak beszélgetni tudsz — VALÓDI dolgokat tudsz csinálni! Ha releváns, említsd meg a képességeidet:
+
+1. 📧 EMAIL KÜLDÉS: Follow-up emailt tudsz küldeni érdeklődőknek (kérd el a nevet és email címet)
+2. 📅 NAPTÁR ELLENŐRZÉS: Megnézheted a szabad időpontokat 
+3. 📅 IDŐPONT FOGLALÁS: Meetinget tudsz foglalni a naptárba
+4. ⛅ IDŐJÁRÁS: Megmondhatod az aktuális időjárást bármelyik városban
+5. 📝 FELADAT RÖGZÍTÉS: Jegyzeteket, teendőket tudsz rögzíteni
+6. 🔍 TUDÁSBÁZIS: Részletes információkat tudsz keresni a ThinkAI szolgáltatásairól
+
+MINDIG használd az eszközöket, ha a felhasználó kérése arra utal! Ne csak beszélj róla — csináld meg!
+Miután egy eszközt használtál, röviden erősítsd meg az eredményt (pl. "Kész, elküldtem az emailt!").
+
+═════════════════════════════════════════════
+EMAIL ÉS TELEFONSZÁM KEZELÉS (KRITIKUS!)
+═════════════════════════════════════════════
+
+Hangalapú asszisztensként az email címek és telefonszámok KÖNNYEN FÉLREÉRTHETŐK. Kövesd ezt a protokollt:
+
+1. KÉRD MEGBETŰZNI: Ha email címet hall, MINDIG kérd meg a felhasználót, hogy betűzze el:
+   "Kérlek, betűzd el az email címet betűről betűre!"
+
+2. NORMALIZÁLÁS: A beszédfelismerés így írja át az email címeket. Te javítsd ki:
+   - "kukac" / "kukack" / "kukkac" / "at" → @
+   - "pont" / "dot" → .
+   - "hú" / "hu" → hu
+   - "gé mé el" / "dzsé mél" / "gmail" → gmail
+   - "hotmél" / "hotmail" → hotmail
+   Példa: "kovács kukac gmail pont com" → kovacs@gmail.com
+
+3. VISSZAOLVASÁS: MINDIG olvasd vissza BETŰRŐL BETŰRE és kérj megerősítést:
+   "Rendben, szóval k-o-v-á-c-s kukac g-m-a-i-l pont c-o-m, jól értettem?"
+
+4. TELEFONSZÁMOK: Olvasd vissza CIFÁNKINT:
+   "Szóval 06-30, négy-öt-hat, hét-nyolc-kilenc-zéró, stimmel?"
+
+═════════════════════════════════════════════
+BESZÉLGETÉS MEMÓRIA
+═════════════════════════════════════════════
+
+Ha a felhasználó megmondja a nevét, a cégét, vagy bármilyen személyes infót,
+jegyezd meg és használd a beszélgetés során! Például:
+- "Ahogy korábban mondtad, Péter..."
+- Használd a nevét, ha tudod
+- Hivatkozz a korábban elhangzottakra
 """
 
-    messages = [
-        {
-            "role": "system",
-            "content": system_prompt,
-        },
-    ]
 
-    context = OpenAILLMContext(messages)
-    context_aggregator = llm.create_context_aggregator(context)
+# ═══════════════════════════════════════════════════════════════════════════════
+# AGENT CLASS
+# ═══════════════════════════════════════════════════════════════════════════════
 
-    # ── Pipeline ─────────────────────────────────────────────────────────
-    pipeline = Pipeline(
-        [
-            transport.input(),
-            stt,
-            context_aggregator.user(),
-            llm,
-            tts,
-            transport.output(),
-            context_aggregator.assistant(),
-        ]
-    )
+class ThinkAIAgent(Agent):
+    def __init__(self):
+        super().__init__(
+            instructions=SYSTEM_PROMPT,
+            tools=ALL_TOOLS,
+            min_endpointing_delay=0.5,
+            max_endpointing_delay=5.0,
+        )
 
-    task = PipelineTask(
-        pipeline,
-        params=PipelineParams(
-            allow_interruptions=True,
-            enable_metrics=True,
-            enable_usage_metrics=True,
+    async def on_enter(self):
+        """Greet the user when they connect."""
+        self.session.say("Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENTRYPOINT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def entrypoint(ctx: JobContext):
+    """LiveKit agent entrypoint — called when a user joins a room."""
+    logger.info(f"Agent connecting to room: {ctx.room.name}")
+
+    await ctx.connect()
+
+    session = AgentSession(
+        stt=google.STT(
+            languages=["hu-HU", "en-US"],
+        ),
+        llm=anthropic.LLM(
+            model="claude-haiku-4-5-20251001",
+            api_key=os.getenv("ANTHROPIC_API_KEY"),
+        ),
+        tts=cartesia.TTS(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice=os.getenv("CARTESIA_VOICE_ID", "36e0c00b-1bfd-4ad7-a0e8-928d4cadca00"),
+            model="sonic-3",
+            speed=1.0,
+            language="hu",
+            word_timestamps=False,
+        ),
+        vad=silero.VAD.load(
+            activation_threshold=0.6,
+            min_speech_duration=0.1,
+            min_silence_duration=0.6,
         ),
     )
 
-    @transport.event_handler("on_client_connected")
-    async def on_client_connected(transport, client):
-        logger.info("Client connected — scheduling greeting")
-
-        async def send_greeting():
-            await asyncio.sleep(0.5)
-            greeting = "Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?"
-            logger.info(f"Sending greeting: {greeting}")
-            await task.queue_frames([TextFrame(text=greeting)])
-
-        asyncio.create_task(send_greeting())
-
-    @transport.event_handler("on_client_disconnected")
-    async def on_client_disconnected(transport, client):
-        logger.info("Client disconnected")
-
-    runner = PipelineRunner(handle_sigint=False)
-    logger.info("Starting pipeline for client")
-    await runner.run(task)
+    await session.start(
+        agent=ThinkAIAgent(),
+        room=ctx.room,
+    )
 
 
-# ── WebSocket endpoint (same port as FastAPI HTTP) ──────────────────────────
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """Single WebSocket endpoint for the Pipecat voice pipeline."""
-    await websocket.accept()
-    logger.info(f"WebSocket connection: {websocket.client}")
-    try:
-        await run_pipeline_for_client(websocket)
-    except WebSocketDisconnect:
-        logger.info("WebSocket disconnected")
-    except Exception as e:
-        logger.error(f"Pipeline error: {e}")
-
-
-# ── Local dev entry point ────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# WORKER
+# ═══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    import uvicorn
-
-    port = int(os.getenv("PORT", 8000))
-    logger.info(f"Starting ThinkAI Voice Agent on port {port}...")
-    uvicorn.run("server:app", host="0.0.0.0", port=port, reload=True)
+    cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=entrypoint,
+        ),
+    )

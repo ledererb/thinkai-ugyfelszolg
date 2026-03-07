@@ -4,278 +4,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ThinkAI Voice Widget</title>
-    <meta name="description" content="ThinkAI hangalapú AI asszisztens widget">
+    <title>ThinkAI Asszisztens</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* ── Reset & Base ─────────────────────────────────────── */
-        *,
-        *::before,
-        *::after {
+        * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-        :root {
-            --tw-navy: #0a1628;
-            --tw-navy-light: #132038;
-            --tw-blue: #3b82f6;
-            --tw-blue-light: #60a5fa;
-            --tw-blue-glow: rgba(59, 130, 246, 0.35);
-            --tw-white: #f1f5f9;
-            --tw-gray: #94a3b8;
-            --tw-red: #ef4444;
-            --tw-green: #22c55e;
-            --widget-font: 'Inter', system-ui, -apple-system, sans-serif;
-        }
-
         body {
-            font-family: var(--widget-font);
-            /* Demo page background — remove when embedding */
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a1a;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--tw-white);
+            overflow: hidden;
         }
 
-        .demo-page {
+        .container {
             text-align: center;
-            opacity: 0.4;
-            user-select: none;
-        }
-
-        .demo-page h1 {
-            font-size: 1.8rem;
-            margin-bottom: 8px;
-        }
-
-        .demo-page p {
-            font-size: 0.95rem;
-            color: var(--tw-gray);
-        }
-
-        /* ── Widget Container ─────────────────────────────────── */
-        #thinkai-voice-widget {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            z-index: 99999;
-            font-family: var(--widget-font);
-        }
-
-        /* ── Floating Action Button (idle) ────────────────────── */
-        .widget-fab {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            background: linear-gradient(135deg, #1e3a5f 0%, var(--tw-blue) 100%);
-            box-shadow:
-                0 4px 20px rgba(59, 130, 246, 0.3),
-                0 2px 8px rgba(0, 0, 0, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: visible;
-        }
-
-        .widget-fab:hover {
-            transform: scale(1.08);
-            box-shadow:
-                0 6px 28px rgba(59, 130, 246, 0.45),
-                0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .widget-fab:active {
-            transform: scale(0.96);
-        }
-
-        .widget-fab svg {
-            width: 26px;
-            height: 26px;
-            fill: white;
-            transition: transform 0.3s;
-        }
-
-        /* Tooltip */
-        .widget-fab::after {
-            content: 'Beszélj velünk';
-            position: absolute;
-            right: 72px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--tw-navy);
-            color: var(--tw-white);
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(59, 130, 246, 0.15);
-        }
-
-        .widget-fab:hover::after {
-            opacity: 1;
-        }
-
-        /* ── Active Panel ─────────────────────────────────────── */
-        .widget-panel {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 320px;
-            background: rgba(10, 22, 40, 0.92);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(59, 130, 246, 0.12);
-            border-radius: 20px;
-            padding: 28px 24px 20px;
-            box-shadow:
-                0 12px 48px rgba(0, 0, 0, 0.5),
-                0 0 0 1px rgba(59, 130, 246, 0.08);
-            transform-origin: bottom right;
-            animation: panelIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-
-        @keyframes panelIn {
-            from {
-                opacity: 0;
-                transform: scale(0.7) translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
-        }
-
-        .widget-panel.closing {
-            animation: panelOut 0.25s ease-in forwards;
-        }
-
-        @keyframes panelOut {
-            from {
-                opacity: 1;
-                transform: scale(1);
-            }
-
-            to {
-                opacity: 0;
-                transform: scale(0.7) translateY(20px);
-            }
-        }
-
-        /* ── Panel Header ─────────────────────────────────────── */
-        .panel-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .panel-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .panel-brand-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #1e3a5f, var(--tw-blue));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .panel-brand-icon svg {
-            width: 18px;
-            height: 18px;
-            fill: white;
-        }
-
-        .panel-brand-text {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--tw-white);
-        }
-
-        .panel-close {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: none;
-            background: rgba(255, 255, 255, 0.06);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--tw-gray);
-            font-size: 1rem;
-            transition: all 0.2s;
-        }
-
-        .panel-close:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: var(--tw-white);
-        }
-
-        /* ── Visualizer ───────────────────────────────────────── */
-        .visualizer-area {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-
-        .pulse-ring {
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .pulse-ring .ring {
-            position: absolute;
+            padding: 2rem;
+            max-width: 420px;
             width: 100%;
-            height: 100%;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: #8892b0;
+            font-size: 0.9rem;
+            margin-bottom: 3rem;
+        }
+
+        /* Mic button */
+        .mic-btn {
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
-            border: 2px solid var(--tw-blue);
-            opacity: 0;
+            border: none;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-size: 2.5rem;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
         }
 
-        .pulse-ring.active .ring {
-            animation: pulseRing 2s ease-out infinite;
+        .mic-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 48px rgba(102, 126, 234, 0.5);
         }
 
-        .pulse-ring.active .ring:nth-child(2) {
-            animation-delay: 0.5s;
+        .mic-btn:active {
+            transform: scale(0.98);
         }
 
-        .pulse-ring.active .ring:nth-child(3) {
-            animation-delay: 1s;
+        /* States */
+        .mic-btn.listening {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+            animation: pulse-blue 2s infinite;
         }
 
-        @keyframes pulseRing {
+        .mic-btn.thinking {
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            box-shadow: 0 8px 32px rgba(246, 211, 101, 0.4);
+            animation: pulse-orange 1.5s infinite;
+        }
+
+        .mic-btn.speaking {
+            background: linear-gradient(135deg, #f857a6, #ff5858);
+            box-shadow: 0 8px 32px rgba(248, 87, 166, 0.4);
+            animation: pulse-pink 2s infinite;
+        }
+
+        .mic-btn.connecting {
+            background: linear-gradient(135deg, #a8a8a8, #666);
+            animation: pulse-gray 1s infinite;
+        }
+
+        .mic-btn.reconnecting {
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            animation: pulse-orange 0.8s infinite;
+        }
+
+        @keyframes pulse-blue {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0px rgba(102, 126, 234, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 20px rgba(102, 126, 234, 0);
+            }
+        }
+
+        @keyframes pulse-pink {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0px rgba(248, 87, 166, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 20px rgba(248, 87, 166, 0);
+            }
+        }
+
+        @keyframes pulse-orange {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0px rgba(246, 211, 101, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 15px rgba(246, 211, 101, 0);
+            }
+        }
+
+        @keyframes pulse-gray {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0px rgba(168, 168, 168, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 0 15px rgba(168, 168, 168, 0);
+            }
+        }
+
+        .mic-btn.speaking::after {
+            content: '';
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 2px solid rgba(248, 87, 166, 0.3);
+            animation: ring 2s infinite;
+        }
+
+        @keyframes ring {
             0% {
-                transform: scale(0.6);
-                opacity: 0.6;
+                transform: scale(1);
+                opacity: 1;
             }
 
             100% {
@@ -284,595 +175,347 @@
             }
         }
 
-        .pulse-core {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #1e3a5f, var(--tw-blue));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 24px var(--tw-blue-glow);
-            z-index: 1;
+        .status {
+            font-size: 0.95rem;
+            color: #8892b0;
+            min-height: 1.5em;
             transition: all 0.3s;
         }
 
-        .pulse-core svg {
-            width: 24px;
-            height: 24px;
-            fill: white;
+        .status.listening {
+            color: #667eea;
         }
 
-        /* Connecting spinner */
-        .pulse-ring.connecting .ring {
-            animation: none;
-            border: 2px solid transparent;
-            border-top-color: var(--tw-blue);
+        .status.thinking {
+            color: #fda085;
         }
 
-        .pulse-ring.connecting .ring:first-child {
-            animation: spin 1s linear infinite;
-            opacity: 1;
+        .status.speaking {
+            color: #f857a6;
         }
 
-        .pulse-ring.connecting .ring:nth-child(2),
-        .pulse-ring.connecting .ring:nth-child(3) {
-            display: none;
+        .status.connecting {
+            color: #888;
         }
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+        .status.reconnecting {
+            color: #fda085;
         }
 
-        /* ── Status Text ──────────────────────────────────────── */
-        .status-text {
-            font-size: 0.82rem;
-            color: var(--tw-gray);
-            text-align: center;
-            transition: color 0.3s;
+        .status.error {
+            color: #ff5858;
         }
 
-        .status-text.connected {
-            color: var(--tw-green);
-        }
-
-        .status-text.error {
-            color: var(--tw-red);
-        }
-
-        /* ── Action Button ────────────────────────────────────── */
-        .action-btn {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 12px;
-            font-family: var(--widget-font);
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.25s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .action-btn.stop {
-            background: rgba(239, 68, 68, 0.12);
-            color: var(--tw-red);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-        }
-
-        .action-btn.stop:hover {
-            background: rgba(239, 68, 68, 0.2);
-        }
-
-        .action-btn svg {
-            width: 16px;
-            height: 16px;
-            fill: currentColor;
-        }
-
-        /* ── Transcript ───────────────────────────────────────── */
+        /* Transcription area */
         .transcript {
-            margin-top: 12px;
-            max-height: 80px;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            min-height: 60px;
+            font-size: 0.85rem;
+            color: #a8b2d1;
+            text-align: left;
+            max-height: 250px;
             overflow-y: auto;
-            font-size: 0.75rem;
-            color: var(--tw-gray);
-            line-height: 1.5;
-            padding: 8px 10px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            display: none;
         }
 
-        .transcript:empty {
-            display: none;
+        .transcript.visible {
+            display: block;
         }
 
         .transcript .user {
-            color: var(--tw-blue-light);
+            color: #667eea;
+            margin-bottom: 0.4rem;
         }
 
-        .transcript .bot {
-            color: var(--tw-white);
-            opacity: 0.8;
+        .transcript .agent {
+            color: #f857a6;
+            margin-bottom: 0.4rem;
         }
 
-        /* ── Error Toast ──────────────────────────────────────── */
-        .error-toast {
-            position: absolute;
-            bottom: 72px;
-            right: 0;
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid rgba(239, 68, 68, 0.25);
-            color: var(--tw-red);
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-size: 0.78rem;
-            font-weight: 500;
-            white-space: normal;
-            max-width: 300px;
-            line-height: 1.4;
-            animation: fadeToast 5s ease forwards;
-            backdrop-filter: blur(8px);
+        /* Visualizer */
+        .visualizer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            height: 40px;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
-        @keyframes fadeToast {
+        .visualizer.active {
+            opacity: 1;
+        }
+
+        .visualizer .bar {
+            width: 4px;
+            border-radius: 2px;
+            height: 6px;
+            transition: height 0.1s, background 0.3s;
+            background: linear-gradient(180deg, #667eea, #764ba2);
+        }
+
+        /* Bar colors change based on who's active */
+        .visualizer.agent-speaking .bar {
+            background: linear-gradient(180deg, #f857a6, #ff5858);
+        }
+
+        .visualizer.active .bar {
+            animation: equalize 0.8s infinite ease-in-out;
+        }
+
+        .visualizer.active .bar:nth-child(1) {
+            animation-delay: 0.0s;
+        }
+
+        .visualizer.active .bar:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .visualizer.active .bar:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .visualizer.active .bar:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        .visualizer.active .bar:nth-child(5) {
+            animation-delay: 0.4s;
+        }
+
+        .visualizer.active .bar:nth-child(6) {
+            animation-delay: 0.15s;
+        }
+
+        .visualizer.active .bar:nth-child(7) {
+            animation-delay: 0.25s;
+        }
+
+        @keyframes equalize {
 
             0%,
-            80% {
-                opacity: 1;
-            }
-
             100% {
-                opacity: 0;
-                pointer-events: none;
+                height: 6px;
             }
-        }
 
-        /* ── Mobile responsive ────────────────────────────────── */
-        @media (max-width: 400px) {
-            .widget-panel {
-                width: calc(100vw - 32px);
-                right: -8px;
+            50% {
+                height: 30px;
             }
         }
     </style>
 </head>
 
 <body>
-    <!-- Demo page content (remove for production embed) -->
-    <div class="demo-page">
-        <h1>thinkai.hu</h1>
-        <p>Voice Widget Demo — kattints a jobb alsó sarokban lévő gombra</p>
+    <div class="container">
+        <div class="logo">ThinkAI</div>
+        <div class="subtitle">AI Voice Asszisztens</div>
+
+        <div class="visualizer" id="visualizer">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+
+        <button class="mic-btn" id="micBtn" onclick="toggleConnection()">🎤</button>
+        <div class="status" id="status">Kattints a mikrofonra az indításhoz</div>
+
+        <div class="transcript" id="transcript"></div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════
-         ThinkAI Voice Widget
-         ═══════════════════════════════════════════════════════ -->
-    <div id="thinkai-voice-widget"></div>
+    <script type="module">
+        import {
+            Room,
+            RoomEvent,
+            Track,
+            ParticipantEvent,
+            ConnectionState,
+        } from 'https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.esm.mjs';
 
-    <!-- Protobuf for Pipecat frame serialization -->
-    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7/dist/protobuf.min.js"></script>
-    <script>
-        (function () {
-            'use strict';
+        let room = null;
+        let connected = false;
+        let reconnecting = false;
+        let agentSpeaking = false;
 
-            // ── Config ─────────────────────────────────────────────
-            // Automatically uses the correct URL locally and on Railway:
-            //   local:      ws://localhost:8000/ws
-            //   production: wss://xxx.railway.app/ws
-            const WS_URL = (typeof NEXT_PUBLIC_WS_URL !== 'undefined')
-                ? NEXT_PUBLIC_WS_URL
-                : (() => {
-                    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-                    const host = location.hostname;
-                    const port = (location.port && location.port !== '80' && location.port !== '443')
-                        ? ':8000'   // local dev: HTTP server on 3000, backend on 8000
-                        : '';
-                    return `${proto}://${host}${port}/ws`;
-                })();
-            const SAMPLE_RATE = 16000;
+        const micBtn = document.getElementById('micBtn');
+        const statusEl = document.getElementById('status');
+        const visualizer = document.getElementById('visualizer');
+        const transcript = document.getElementById('transcript');
 
-            // ── State ──────────────────────────────────────────────
-            let state = 'idle';   // idle | connecting | active | ended
-            let ws = null;
-            let audioContext = null;
-            let mediaStream = null;
-            let processor = null;
-            let FrameMsg = null;
+        // ── State management ─────────────────────────────────────────────
+        function setState(state, message) {
+            // Remove all state classes
+            micBtn.classList.remove('listening', 'thinking', 'speaking', 'connecting', 'reconnecting');
+            statusEl.classList.remove('listening', 'thinking', 'speaking', 'connecting', 'reconnecting', 'error');
+            visualizer.classList.remove('agent-speaking');
 
-            // Audio playback — time-based gapless scheduling
-            let playbackContext = null;
-            let nextPlayTime = 0;
+            micBtn.classList.add(state);
+            statusEl.classList.add(state);
+            statusEl.textContent = message;
 
-            // Retry & timeout
-            const MAX_RETRIES = 2;
-            const TIMEOUT_MS = 30000; // 30 seconds
-            let retryCount = 0;
-            let timeoutTimer = null;
-            let lastActivityTime = 0;
-
-            // ── DOM references ─────────────────────────────────────
-            const widget = document.getElementById('thinkai-voice-widget');
-
-            // ── SVG Icons ──────────────────────────────────────────
-            const icons = {
-                mic: `<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`,
-                stop: `<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`,
-                close: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`,
-                wave: `<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`,
-            };
-
-            // ── Render ─────────────────────────────────────────────
-            function render() {
-                if (state === 'idle') {
-                    widget.innerHTML = `
-                    <button class="widget-fab" id="tw-fab" aria-label="Beszélj velünk">
-                        ${icons.mic}
-                    </button>`;
-                    widget.querySelector('#tw-fab').addEventListener('click', startSession);
-                } else {
-                    const isConnecting = state === 'connecting';
-                    const isActive = state === 'active';
-                    const ringClass = isConnecting ? 'connecting' : (isActive ? 'active' : '');
-                    const statusText = isConnecting ? 'Csatlakozás...'
-                        : isActive ? 'Hallgatlak — beszélj bátran!'
-                            : '';
-                    const statusClass = isActive ? 'connected' : '';
-
-                    widget.innerHTML = `
-                    <div class="widget-panel" id="tw-panel">
-                        <div class="panel-header">
-                            <div class="panel-brand">
-                                <div class="panel-brand-icon">${icons.wave}</div>
-                                <span class="panel-brand-text">ThinkAI Asszisztens</span>
-                            </div>
-                            <button class="panel-close" id="tw-close" aria-label="Bezárás">${icons.close}</button>
-                        </div>
-                        <div class="visualizer-area">
-                            <div class="pulse-ring ${ringClass}">
-                                <div class="ring"></div>
-                                <div class="ring"></div>
-                                <div class="ring"></div>
-                                <div class="pulse-core">${isActive ? icons.mic : icons.mic}</div>
-                            </div>
-                            <div class="status-text ${statusClass}">${statusText}</div>
-                        </div>
-                        ${isActive ? `
-                            <button class="action-btn stop" id="tw-stop">
-                                ${icons.stop} Befejezés
-                            </button>
-                            <div class="transcript" id="tw-transcript"></div>
-                        ` : ''}
-                    </div>`;
-
-                    widget.querySelector('#tw-close').addEventListener('click', endSession);
-                    const stopBtn = widget.querySelector('#tw-stop');
-                    if (stopBtn) stopBtn.addEventListener('click', endSession);
-                }
+            if (state === 'speaking') {
+                visualizer.classList.add('agent-speaking');
             }
+        }
 
-            // ── Protobuf Init ──────────────────────────────────────
-            async function initProtobuf() {
-                if (FrameMsg) return;
-                const Root = protobuf.Root.fromJSON({
-                    nested: {
-                        pipecat: {
-                            nested: {
-                                TextFrame: {
-                                    fields: {
-                                        id: { type: "uint64", id: 1 },
-                                        name: { type: "string", id: 2 },
-                                        text: { type: "string", id: 3 }
-                                    }
-                                },
-                                AudioRawFrame: {
-                                    fields: {
-                                        id: { type: "uint64", id: 1 },
-                                        name: { type: "string", id: 2 },
-                                        audio: { type: "bytes", id: 3 },
-                                        sample_rate: { type: "uint32", id: 4 },
-                                        num_channels: { type: "uint32", id: 5 },
-                                        pts: { type: "uint64", id: 6 }
-                                    }
-                                },
-                                TranscriptionFrame: {
-                                    fields: {
-                                        id: { type: "uint64", id: 1 },
-                                        name: { type: "string", id: 2 },
-                                        text: { type: "string", id: 3 },
-                                        user_id: { type: "string", id: 4 },
-                                        timestamp: { type: "string", id: 5 }
-                                    }
-                                },
-                                MessageFrame: { fields: { data: { type: "string", id: 1 } } },
-                                Frame: {
-                                    oneofs: { frame: { oneof: ["text", "audio", "transcription", "message"] } },
-                                    fields: {
-                                        text: { type: "TextFrame", id: 1 },
-                                        audio: { type: "AudioRawFrame", id: 2 },
-                                        transcription: { type: "TranscriptionFrame", id: 3 },
-                                        message: { type: "MessageFrame", id: 4 }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-                FrameMsg = Root.lookupType("pipecat.Frame");
+        // ── Toggle Connection ────────────────────────────────────────────
+        window.toggleConnection = async function () {
+            if (connected) {
+                disconnect();
+            } else {
+                await connect();
             }
+        };
 
-            // ── Audio Encoding ─────────────────────────────────────
-            function float32ToPCM16(float32) {
-                const buf = new ArrayBuffer(float32.length * 2);
-                const view = new DataView(buf);
-                for (let i = 0; i < float32.length; i++) {
-                    const s = Math.max(-1, Math.min(1, float32[i]));
-                    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-                }
-                return buf;
-            }
+        async function connect() {
+            setState('connecting', 'Csatlakozás...');
 
-            function encodeAudioFrame(pcmBuf) {
-                const frame = FrameMsg.create({
-                    audio: {
-                        audio: new Uint8Array(pcmBuf),
-                        sample_rate: SAMPLE_RATE,
-                        num_channels: 1,
-                    }
-                });
-                return FrameMsg.encode(frame).finish();
-            }
+            try {
+                // 1. Get token from our server
+                const resp = await fetch('/api/token');
+                if (!resp.ok) throw new Error('Token hiba');
+                const { token, url } = await resp.json();
 
-            // ── Audio Playback — gapless time-based scheduling ────
-            const PLAYBACK_RATE = 24000; // must match server audio_out_sample_rate
-
-            function ensurePlaybackContext() {
-                if (!playbackContext || playbackContext.state === 'closed') {
-                    playbackContext = new AudioContext({ sampleRate: PLAYBACK_RATE });
-                }
-                return playbackContext;
-            }
-
-            function queueAudio(audioBytes, sampleRate) {
-                const ctx = ensurePlaybackContext();
-                // audioBytes is a Uint8Array from protobuf that may have a
-                // non-zero byteOffset. Copy into an aligned independent buffer.
-                const cleanBuf = audioBytes.buffer.slice(
-                    audioBytes.byteOffset,
-                    audioBytes.byteOffset + audioBytes.byteLength
-                );
-                const pcm16 = new Int16Array(cleanBuf);
-                const float32 = new Float32Array(pcm16.length);
-                for (let i = 0; i < pcm16.length; i++) {
-                    float32[i] = pcm16[i] / 32768.0;
-                }
-
-                const sr = sampleRate || PLAYBACK_RATE;
-                const buffer = ctx.createBuffer(1, float32.length, sr);
-                buffer.getChannelData(0).set(float32);
-
-                const source = ctx.createBufferSource();
-                source.buffer = buffer;
-                source.connect(ctx.destination);
-
-                const now = ctx.currentTime;
-                // If nextPlayTime has fallen behind (gap in stream / first chunk),
-                // reset it with a tiny lead-in so the scheduler has breathing room.
-                if (nextPlayTime <= now) {
-                    nextPlayTime = now + 0.05; // 50 ms initial buffer
-                }
-                source.start(nextPlayTime);
-                nextPlayTime += buffer.duration;
-            }
-
-            // ── Transcript ─────────────────────────────────────────
-            function addTranscript(role, text) {
-                const el = document.getElementById('tw-transcript');
-                if (!el) return;
-                const cls = role === 'user' ? 'user' : 'bot';
-                const prefix = role === 'user' ? 'Te' : 'AI';
-                el.innerHTML += `<div class="${cls}"><b>${prefix}:</b> ${text}</div>`;
-                el.scrollTop = el.scrollHeight;
-            }
-
-            // ── Microphone ─────────────────────────────────────────
-            // Synchronous linear interpolation downsample (no async, no event loop blocking)
-            function downsampleLinear(inBuf, inRate, outRate) {
-                if (inRate === outRate) return inBuf;
-                const ratio = inRate / outRate;
-                const outLen = Math.round(inBuf.length / ratio);
-                const out = new Float32Array(outLen);
-                for (let i = 0; i < outLen; i++) {
-                    const pos = i * ratio;
-                    const idx = Math.floor(pos);
-                    const frac = pos - idx;
-                    const a = inBuf[idx] || 0;
-                    const b = inBuf[idx + 1] || 0;
-                    out[i] = a + frac * (b - a);
-                }
-                return out;
-            }
-
-            async function startMicrophone() {
-                // Use the browser's native sample rate — do NOT force 16kHz
-                // because most browsers ignore the constraint and produce silence.
-                audioContext = new AudioContext();
-                const nativeSampleRate = audioContext.sampleRate;
-                console.log('[ThinkAI] AudioContext native sample rate:', nativeSampleRate);
-
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        channelCount: 1,
+                // 2. Create LiveKit room
+                room = new Room({
+                    audioCaptureDefaults: {
+                        autoGainControl: true,
                         echoCancellation: true,
                         noiseSuppression: true,
-                        autoGainControl: true,
+                    },
+                    reconnectPolicy: {
+                        maxRetries: 5,
+                        maxRetryDelay: 5000,
+                    },
+                });
+
+                // 3. Handle audio tracks
+                room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    if (track.kind === Track.Kind.Audio) {
+                        const el = track.attach();
+                        el.id = `audio-${participant.identity}`;
+                        document.body.appendChild(el);
                     }
                 });
 
-                const source = audioContext.createMediaStreamSource(mediaStream);
-                processor = audioContext.createScriptProcessor(4096, 1, 1);
+                room.on(RoomEvent.TrackUnsubscribed, (track) => {
+                    track.detach().forEach(el => el.remove());
+                });
 
-                processor.onaudioprocess = (e) => {
-                    if (state !== 'active' || !ws || ws.readyState !== WebSocket.OPEN) return;
-                    const float32 = e.inputBuffer.getChannelData(0);
-                    // Synchronous resample to 16kHz
-                    const resampled = downsampleLinear(float32, nativeSampleRate, SAMPLE_RATE);
-                    const pcm16 = float32ToPCM16(resampled);
-                    ws.send(encodeAudioFrame(pcm16));
-                };
-
-                source.connect(processor);
-                processor.connect(audioContext.destination);
-                console.log('[ThinkAI] Microphone started, streaming audio to server...');
-            }
-
-            function stopMicrophone() {
-                if (processor) { processor.disconnect(); processor = null; }
-                if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
-                if (audioContext) { audioContext.close(); audioContext = null; }
-                if (playbackContext) { playbackContext.close(); playbackContext = null; }
-                nextPlayTime = 0;
-            }
-
-            // ── Error Toast ────────────────────────────────────────
-            function showError(msg) {
-                // Remove existing toasts
-                widget.querySelectorAll('.error-toast').forEach(t => t.remove());
-                const toast = document.createElement('div');
-                toast.className = 'error-toast';
-                toast.textContent = msg;
-                widget.appendChild(toast);
-                setTimeout(() => toast.remove(), 5500);
-            }
-
-            // ── Timeout ───────────────────────────────────────────
-            function resetTimeout() {
-                lastActivityTime = Date.now();
-                clearTimeout(timeoutTimer);
-                timeoutTimer = setTimeout(() => {
-                    if (state === 'active') {
-                        console.warn('[ThinkAI] 30s timeout — no response');
-                        showError('A kapcsolat időtúllépés miatt megszakadt. Próbáld újra!');
-                        endSession();
-                    }
-                }, TIMEOUT_MS);
-            }
-
-            function clearTimeoutTimer() {
-                clearTimeout(timeoutTimer);
-                timeoutTimer = null;
-            }
-
-            // ── Session Control ────────────────────────────────────
-            async function startSession() {
-                state = 'connecting';
-                render();
-
-                try {
-                    await initProtobuf();
-
-                    // Request mic permission first
-                    await startMicrophone();
-
-                    // Connect WebSocket (with retry)
-                    connectWebSocket();
-
-                } catch (err) {
-                    console.error('[ThinkAI] Error:', err);
-                    if (err.name === 'NotAllowedError') {
-                        showError('A mikrofon engedély szükséges a hangalapú chathez.');
-                    } else if (err.name === 'NotFoundError') {
-                        showError('Nem található mikrofon a készüléken.');
-                    } else {
-                        showError('Az asszisztens jelenleg nem elérhető. Írj nekünk: hello@thinkai.hu');
-                    }
-                    if (err.name === 'NotAllowedError' || err.name === 'NotFoundError') {
-                        endSession();
-                    }
-                }
-            }
-
-            function connectWebSocket() {
-                ws = new WebSocket(WS_URL);
-                ws.binaryType = 'arraybuffer';
-
-                ws.onopen = () => {
-                    retryCount = 0; // reset on successful connection
-                    state = 'active';
-                    render();
-                    resetTimeout(); // start 30s inactivity timer
-                };
-
-                ws.onmessage = (event) => {
-                    resetTimeout(); // reset timer on every incoming message
-                    try {
-                        const frame = FrameMsg.decode(new Uint8Array(event.data));
-                        const type = frame.frame;
-
-                        if (type === 'audio' && frame.audio) {
-                            const sr = frame.audio.sample_rate || SAMPLE_RATE;
-                            queueAudio(frame.audio.audio, sr);
-                        } else if (type === 'transcription' && frame.transcription) {
-                            addTranscript('user', frame.transcription.text);
-                        } else if (type === 'text' && frame.text) {
-                            addTranscript('bot', frame.text.text);
+                // 4. Handle transcriptions
+                room.on(RoomEvent.TranscriptionReceived, (segments, participant) => {
+                    for (const seg of segments) {
+                        if (seg.final) {
+                            const isAgent = participant?.identity !== room.localParticipant?.identity;
+                            addTranscript(isAgent ? 'agent' : 'user', seg.text);
                         }
-                    } catch (err) {
-                        console.warn('[ThinkAI] Frame decode error:', err);
                     }
-                };
+                });
 
-                ws.onerror = () => {
-                    handleConnectionError();
-                };
+                room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+                    try {
+                        const text = new TextDecoder().decode(payload);
+                        const data = JSON.parse(text);
+                        if (data.type === 'transcription' && data.text) {
+                            addTranscript(data.role || 'agent', data.text);
+                        }
+                    } catch (e) { }
+                });
 
-                ws.onclose = () => {
-                    if (state === 'active') {
-                        handleConnectionError();
+                // 5. Track agent speaking state
+                room.on(RoomEvent.ParticipantConnected, (participant) => {
+                    participant.on(ParticipantEvent.IsSpeakingChanged, (speaking) => {
+                        agentSpeaking = speaking;
+                        if (speaking) {
+                            setState('speaking', 'Beszélek...');
+                            visualizer.classList.add('active');
+                        } else {
+                            setState('listening', 'Hallgatlak...');
+                            visualizer.classList.add('active');
+                        }
+                    });
+                });
+
+                // 6. Connection state changes (auto-reconnect)
+                room.on(RoomEvent.ConnectionStateChanged, (state) => {
+                    switch (state) {
+                        case ConnectionState.Reconnecting:
+                            reconnecting = true;
+                            setState('reconnecting', 'Újracsatlakozás...');
+                            break;
+                        case ConnectionState.Connected:
+                            if (reconnecting) {
+                                reconnecting = false;
+                                setState('listening', 'Újra csatlakozva! Hallgatlak...');
+                            }
+                            break;
                     }
-                };
+                });
+
+                room.on(RoomEvent.Disconnected, (reason) => {
+                    if (!reconnecting) {
+                        disconnect();
+                    }
+                });
+
+                // 7. Connect with mic enabled
+                await room.connect(url, token);
+                await room.localParticipant.setMicrophoneEnabled(true);
+
+                connected = true;
+                setState('listening', 'Hallgatlak...');
+                visualizer.classList.add('active');
+                transcript.classList.add('visible');
+
+            } catch (err) {
+                console.error('Connection error:', err);
+                setState('error', 'Hiba: ' + err.message);
+                micBtn.classList.remove('connecting');
+                setTimeout(() => {
+                    if (!connected) {
+                        statusEl.textContent = 'Kattints a mikrofonra az indításhoz';
+                        statusEl.className = 'status';
+                    }
+                }, 4000);
             }
+        }
 
-            function handleConnectionError() {
-                clearTimeoutTimer();
-
-                if (retryCount < MAX_RETRIES) {
-                    retryCount++;
-                    console.log(`[ThinkAI] Retry ${retryCount}/${MAX_RETRIES}...`);
-                    // Clean up old WS without full endSession
-                    if (ws) { try { ws.close(); } catch (e) { } ws = null; }
-                    state = 'connecting';
-                    render();
-                    // Retry after a short delay
-                    setTimeout(() => {
-                        if (state === 'connecting') connectWebSocket();
-                    }, 1500);
-                } else {
-                    showError('Az asszisztens jelenleg nem elérhető. Írj nekünk: hello@thinkai.hu');
-                    retryCount = 0;
-                    endSession();
-                }
+        function disconnect() {
+            if (room) {
+                room.disconnect();
+                room = null;
             }
+            connected = false;
+            reconnecting = false;
+            agentSpeaking = false;
+            micBtn.classList.remove('listening', 'thinking', 'speaking', 'connecting', 'reconnecting');
+            statusEl.textContent = 'Kattints a mikrofonra az indításhoz';
+            statusEl.className = 'status';
+            visualizer.classList.remove('active', 'agent-speaking');
+        }
 
-            function endSession() {
-                clearTimeoutTimer();
-                stopMicrophone();
-                if (ws) { try { ws.close(); } catch (e) { } ws = null; }
-                retryCount = 0;
-                state = 'idle';
-                render();
+        function addTranscript(role, text) {
+            if (!text || text.trim() === '') return;
+            const div = document.createElement('div');
+            div.className = role;
+            div.textContent = (role === 'user' ? '🗣️ ' : '🤖 ') + text;
+            transcript.appendChild(div);
+            transcript.scrollTop = transcript.scrollHeight;
+
+            // When we see user text, show "thinking" until agent speaks
+            if (role === 'user' && connected && !agentSpeaking) {
+                setState('thinking', 'Gondolkodom...');
             }
-
-            // ── Init ───────────────────────────────────────────────
-            render();
-
-        })();
+        }
     </script>
 </body>
 
