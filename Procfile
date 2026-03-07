@@ -1,1 +1,1 @@
-web: uvicorn thinkai-voice-agent.server:app --host 0.0.0.0 --port $PORT
+web: cd thinkai-voice-agent && bash start.sh start
