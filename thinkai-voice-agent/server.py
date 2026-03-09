@@ -1,6 +1,6 @@
 """
 ThinkAI Voice Agent — LiveKit Agents Server
-Real-time voice assistant powered by LiveKit + Google STT + Gemini 2.5 Flash + Cartesia TTS
+Real-time voice assistant powered by LiveKit + Deepgram Nova-3 STT + Gemini 2.5 Flash + Cartesia TTS
 """
 
 import os
@@ -24,7 +24,7 @@ from livekit.agents import (
     cli,
 )
 
-from livekit.plugins import cartesia, google, silero
+from livekit.plugins import cartesia, deepgram, google, silero
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
@@ -156,68 +156,27 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect()
 
     session = AgentSession(
-        stt=google.STT(
-            languages=["hu-HU", "en-US"],
+        stt=deepgram.STT(
+            model="nova-3",
+            language="hu",
+            detect_language=True,
+            smart_format=True,
+            punctuate=True,
             keywords=[
-                # ── Brand names (highest boost) ──────────────────────────
-                ("ThinkAI", 20.0),
-                ("Tink-éjáj", 20.0),
-                ("Tinkéjáj", 20.0),
-                ("Tinkai", 15.0),
-                ("Finkéjáj", 15.0),
-                ("EAISY", 20.0),
-                ("Ízí", 15.0),
-                ("Hungarorisk", 15.0),
-                ("ListaMester", 15.0),
-                ("Könyvelés AI", 10.0),
-                # ── Business/tech terms ──────────────────────────────────
-                ("audit", 10.0),
-                ("AI", 10.0),
-                ("automatizáció", 10.0),
-                ("ügyfélszolgálat", 10.0),
-                ("pályázat", 10.0),
-                ("DIMOP", 10.0),
-                ("ERP", 10.0),
-                ("CRM", 10.0),
-                # ── Email vocabulary ─────────────────────────────────────
-                ("kukac", 10.0),
-                ("gmail", 10.0),
-                ("email", 10.0),
-                ("thinkai.hu", 15.0),
-                ("hello@thinkai.hu", 15.0),
-                # ── Common Hungarian first names ─────────────────────────
-                ("Balázs", 5.0),
-                ("Gergő", 5.0),
-                ("László", 5.0),
-                ("Szabolcs", 5.0),
-                ("Tamás", 5.0),
-                ("Péter", 5.0),
-                ("János", 5.0),
-                ("András", 5.0),
-                ("Zoltán", 5.0),
-                ("István", 5.0),
-                ("Attila", 5.0),
-                ("Krisztián", 5.0),
-                ("Zsolt", 5.0),
-                ("Katalin", 5.0),
-                ("Éva", 5.0),
-                ("Anna", 5.0),
-                ("Eszter", 5.0),
-                # ── Common Hungarian last names ──────────────────────────
-                ("Nagy", 5.0),
-                ("Kovács", 5.0),
-                ("Tóth", 5.0),
-                ("Szabó", 5.0),
-                ("Horváth", 5.0),
-                ("Varga", 5.0),
-                ("Kiss", 5.0),
-                ("Molnár", 5.0),
-                ("Németh", 5.0),
-                ("Farkas", 5.0),
-                ("Balogh", 5.0),
-                ("Papp", 5.0),
-                ("Takács", 5.0),
-                ("Léder", 10.0),
+                # ── Brand names ───────────────────────────────────────────
+                "ThinkAI:3", "Tinkéjáj:3", "Tinkai:2", "EAISY:3",
+                "Hungarorisk:2", "ListaMester:2",
+                # ── Business terms ────────────────────────────────────────
+                "audit:1", "automatizáció:1", "ügyfélszolgálat:1",
+                "pályázat:1", "DIMOP:1",
+                # ── Email ─────────────────────────────────────────────────
+                "kukac:1", "thinkai.hu:2", "hello@thinkai.hu:2",
+                # ── Common names ──────────────────────────────────────────
+                "Balázs:1", "Gergő:1", "László:1", "Szabolcs:1",
+                "Tamás:1", "Péter:1", "János:1", "András:1",
+                "Zoltán:1", "István:1", "Attila:1",
+                "Nagy:1", "Kovács:1", "Tóth:1", "Szabó:1",
+                "Horváth:1", "Varga:1", "Kiss:1", "Léder:2",
             ],
         ),
         llm=google.LLM(
