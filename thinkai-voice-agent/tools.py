@@ -311,60 +311,45 @@ async def create_task(
 # 6. KNOWLEDGE LOOKUP (structured ThinkAI info)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-KNOWLEDGE_BASE = {
-    "pricing": (
-        "Az árazás projektfüggő. Általánosságban: "
-        "Audit díja: 150.000 – 300.000 Ft (100% pénzvisszafizetési garanciával). "
-        "Egyedi fejlesztés: projekttől függően 500.000 Ft-tól. "
-        "AI-ügyfélszolgálat: havi előfizetéses modell, a hívásszámtól függően. "
-        "Pontos árajánlatért töltse ki az ajánlatkérő űrlapot a thinkai.hu weboldalon."
-    ),
-    "audit": (
-        "Az audit egy teljeskörű szervezeti átvilágítás, ahol feltérképezzük a vállalkozás "
-        "folyamatait és megtaláljuk azokat a pontokat, ahol az AI azonnal értéket teremthet. "
-        "100% pénzvisszafizetési garancia: ha nem tetszik az audit eredménye, kérdés nélkül "
-        "visszafizetjük az árát."
-    ),
-    "tech_stack": (
-        "A ThinkAI csapat a következő technológiákat használja: "
-        "Make.com és n8n workflow automatizáció, Python/Node.js backend fejlesztés, "
-        "OpenAI, Anthropic Claude, Google AI modellek, "
-        "egyedi AI-agentek fejlesztése, ERP integráció, CRM automatizáció."
-    ),
-    "team": (
-        "A ThinkAI egy magyar startup, amely tapasztalt AI és szoftverfejlesztő "
-        "szakemberekből áll. A csapat célja, hogy a legmodernebb AI megoldásokat "
-        "tegye elérhetővé a magyar kis- és középvállalkozások számára."
-    ),
-    "eaisy": (
-        "Az EAISY a ThinkAI saját fejlesztésű termékcsaládja: moduláris ERP és AI "
-        "eszközök, amelyek azonnal integrálhatók a mindennapi működésbe."
-    ),
-    "guarantee": (
-        "A ThinkAI 100% pénzvisszafizetési garanciát ad az audit szolgáltatásra. "
-        "Ha nem tetszik az audit eredménye, kérdés nélkül visszafizetjük az árát."
-    ),
-}
+# ── Knowledge base path ──────────────────────────────────────────────────────
+KNOWLEDGE_FILE = THIS_DIR / "knowledge.json"
 
 
-@function_tool(description="ThinkAI belső tudásbázis lekérdezése. Használd, ha a felhasználó részletes információt kér az árazásról, auditról, technológiáról, csapatról, EAISY-ról vagy a garanciáról.")
+def _load_knowledge() -> dict:
+    """Load knowledge base from JSON file."""
+    if KNOWLEDGE_FILE.exists():
+        try:
+            return json.loads(KNOWLEDGE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+@function_tool(description="ThinkAI belső tudásbázis lekérdezése. Használd, ha a felhasználó részletes információt kér az árazásról, auditról, technológiáról, csapatról, EAISY-ról, garanciáról, szektorokról, sikertörténetekről vagy a munkafolyamatokról.")
 async def lookup_info(
     ctx: RunContext,
-    topic: Annotated[str, "A keresett téma: pricing, audit, tech_stack, team, eaisy, guarantee"],
+    topic: Annotated[str, "A keresett téma: pricing, audit, tech_stack, team, eaisy, guarantee, pillerek, hogyan_dolgozunk, szektorok, sikertortenetek, kapcsolat, penzugy, ecommerce, marketing, listamester, hungarorisk, konyvelesai"],
 ) -> str:
     """ThinkAI tudásbázis lekérdezése."""
+    kb = _load_knowledge()
     topic_lower = topic.lower().strip()
     logger.info(f"Knowledge lookup: {topic_lower}")
 
-    if topic_lower in KNOWLEDGE_BASE:
-        return KNOWLEDGE_BASE[topic_lower]
+    # Exact match
+    if topic_lower in kb:
+        return kb[topic_lower]
 
-    # Fuzzy match
-    for key, value in KNOWLEDGE_BASE.items():
+    # Fuzzy match on keys
+    for key, value in kb.items():
         if key in topic_lower or topic_lower in key:
             return value
 
-    topics = ", ".join(KNOWLEDGE_BASE.keys())
+    # Fuzzy match on values
+    for key, value in kb.items():
+        if topic_lower in value.lower():
+            return value
+
+    topics = ", ".join(kb.keys())
     return (
         f"Erről a témáról nincs részletes információm. "
         f"A következő témákban tudok segíteni: {topics}. "

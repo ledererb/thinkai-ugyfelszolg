@@ -1,0 +1,35 @@
+{
+  "pricing": "Az árazás projektfüggő. Audit díja: 150.000–300.000 Ft, 100% pénzvisszafizetési garanciával. Egyedi fejlesztés: projekttől függően 500.000 Ft-tól. AI-ügyfélszolgálat: havi előfizetéses modell, a hívásszámtól függően. Pontos árajánlatért töltse ki az ajánlatkérő űrlapot a thinkai.hu weboldalon.",
+
+  "audit": "Az audit egy teljeskörű szervezeti átvilágítás, ahol feltérképezzük a vállalkozás folyamatait és megtaláljuk azokat a pontokat, ahol az AI azonnal értéket teremthet. 100% pénzvisszafizetési garancia: ha nem tetszik az audit eredménye, kérdés nélkül visszafizetjük az árát.",
+
+  "guarantee": "A ThinkAI 100% pénzvisszafizetési garanciát ad az audit szolgáltatásra. Ha nem tetszik az audit eredménye, kérdés nélkül visszafizetjük az árát.",
+
+  "tech_stack": "A ThinkAI csapat a következő technológiákat használja: Make.com és n8n workflow automatizáció, Python/Node.js backend fejlesztés, OpenAI, Anthropic Claude, Google AI modellek, egyedi AI-agentek fejlesztése, ERP integráció, CRM automatizáció.",
+
+  "team": "A ThinkAI egy magyar startup, amely tapasztalt AI és szoftverfejlesztő szakemberekből áll. A csapat célja, hogy a legmodernebb AI megoldásokat tegye elérhetővé a magyar kis- és középvállalkozások számára.",
+
+  "eaisy": "Az EAISY a ThinkAI saját fejlesztésű termékcsaládja: moduláris ERP és AI eszközök, amelyek azonnal integrálhatók a mindennapi működésbe.",
+
+  "pillerek": "A ThinkAI három fő pillére: 1) EGYEDI FEJLESZTÉS: Specifikus üzleti problémákra szabott AI megoldások tervezése és kivitelezése. Nincs dobozos kompromisszum, csak az ügyfél igényei. 2) AI-ÜGYFÉLSZOLGÁLAT: Intelligens, 0-24 elérhető virtuális asszisztensek, amelyek emberi minőségben kezelik az ügyfelek hívásait és kérdéseit. 3) EAISY-TERMÉKCSALÁD: Saját fejlesztésű, moduláris ERP és AI eszközök, amelyek azonnal integrálhatók a mindennapi működésbe.",
+
+  "hogyan_dolgozunk": "Két út létezik. ÚT 1 – 'Még nem tudom, mit akarok': Audit (teljeskörű átvilágítás, 100% pénzvisszafizetési garanciával) → Prezentáció (személyre szabott javaslatok) → Kiválasztás → Megvalósítás. ÚT 2 – 'Tudom, mit akarok': Technikai Specifikációs Meeting → Árajánlat → Megvalósítás.",
+
+  "penzugy": "PÉNZÜGY & SZÁMVITEL szektorra szóló megoldások: Számlafeldolgozás, pénzügyi riportok automatizálása, döntéstámogatás és kockázatkezelés AI-val — akár 70%-kal gyorsabban.",
+
+  "ecommerce": "E-KERESKEDELEM szektorra szóló megoldások: Terméklistázás, rendeléskezelés, ügyfélszolgálat és marketing automatizálás — több bevétel, kevesebb manuális munka.",
+
+  "marketing": "MARKETING & SALES szektorra szóló megoldások: Tartalomdisztribúció, ajánlatkészítés, CRM-integráció és értékesítési pipeline optimalizálás mesterséges intelligenciával.",
+
+  "listamester": "LISTAMESTER (Email Marketing) sikertörténet: 360°-os onboarding automatizáció — DNS validáció, személyre szabott ügyfélkommunikáció és teljes workflow orchestráció, manuális support nélkül, Make.com platformon.",
+
+  "hungarorisk": "HUNGARORISK (Biztosítás) sikertörténet: Napi 30–40 ajánlatkérés, 9 biztosítási szakterület, végtelen formátum — egyetlen AI-agent, amely minden beérkező kérést értelmez, feldolgoz és kioszt, emberi beavatkozás nélkül.",
+
+  "konyvelesai": "KÖNYVELÉS AI (Pénzügy) sikertörténet: E-mailben érkező számlák automatikus feldolgozása, kontírozása és bankegyeztetése ML alapon.",
+
+  "sikertortenetek": "Három kiemelt sikertörténetünk: 1) LISTAMESTER: 360°-os onboarding automatizáció Make.com-on. 2) HUNGARORISK: Napi 30-40 ajánlatkérés egyetlen AI-agenttel feldolgozva. 3) KÖNYVELÉS AI: Számlák automatikus feldolgozása, kontírozása ML alapon. Több mint 20 sikeres projekt a hátunk mögött.",
+
+  "szektorok": "Fő célszektoraink: Pénzügy & Számvitel (számlafeldolgozás, riportok, döntéstámogatás), E-kereskedelem (terméklistázás, rendeléskezelés, marketing), Marketing & Sales (CRM, pipeline optimalizálás, tartalomdisztribúció).",
+
+  "kapcsolat": "Elérhetőségek: Weboldal: thinkai.hu, E-mail: hello@thinkai.hu. Ajánlatkéréshez töltsd ki az űrlapot a weboldalon vagy írj emailt!"
+}
