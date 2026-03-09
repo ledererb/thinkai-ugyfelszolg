@@ -1,6 +1,6 @@
 """
 ThinkAI Voice Agent — LiveKit Agents Server
-Real-time voice assistant powered by LiveKit + Google STT + Anthropic Claude + Cartesia TTS
+Real-time voice assistant powered by LiveKit + Google STT + Gemini 2.5 Flash + Cartesia TTS
 """
 
 import os
@@ -24,7 +24,7 @@ from livekit.agents import (
     cli,
 )
 
-from livekit.plugins import anthropic, cartesia, google, silero
+from livekit.plugins import cartesia, google, silero
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
@@ -134,9 +134,8 @@ async def entrypoint(ctx: JobContext):
         stt=google.STT(
             languages=["hu-HU", "en-US"],
         ),
-        llm=anthropic.LLM(
-            model="claude-haiku-4-5-20251001",
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
+        llm=google.LLM(
+            model="gemini-2.5-flash",
         ),
         tts=cartesia.TTS(
             api_key=os.getenv("CARTESIA_API_KEY"),
