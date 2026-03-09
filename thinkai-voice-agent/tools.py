@@ -47,15 +47,19 @@ async def send_followup_email(
     subject: Annotated[str, "Az email tárgya"] = "ThinkAI — Köszönjük érdeklődését!",
 ) -> str:
     """Follow-up email küldése egy érdeklődőnek."""
-    import base64 as b64module
     raw_key = os.getenv("BREVO_API_KEY", "")
-    # Decode base64-wrapped MCP key if needed
-    try:
-        decoded = b64module.b64decode(raw_key).decode()
-        import json as _json
-        api_key = _json.loads(decoded).get("api_key", raw_key)
-    except Exception:
-        api_key = raw_key
+    # Try raw key first. If it looks base64-encoded (no hyphens, starts with 'ey'), try decoding.
+    api_key = raw_key
+    if raw_key and not raw_key.startswith("xkeysib-"):
+        try:
+            import base64 as b64module
+            decoded = b64module.b64decode(raw_key).decode()
+            parsed = json.loads(decoded)
+            api_key = parsed.get("api_key", raw_key)
+            logger.info("Brevo key: decoded from base64/JSON")
+        except Exception:
+            api_key = raw_key
+    logger.info(f"Brevo key starts with: {api_key[:12]}...")
     logger.info(f"Sending follow-up email to {recipient_name} <{recipient_email}>")
 
     sent_ok = False
@@ -179,8 +183,9 @@ async def book_meeting(
         end_dt = start_dt + timedelta(minutes=duration_minutes)
 
         events = _read_json(CALENDAR_FILE)
+        new_id = max((e.get("id", 0) for e in events), default=0) + 1
         events.append({
-            "id": len(events) + 1,
+            "id": new_id,
             "title": title,
             "start": start_dt.isoformat(),
             "end": end_dt.isoformat(),
@@ -367,11 +372,102 @@ async def lookup_info(
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 7. MODIFY CALENDAR EVENT (voice command)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@function_tool(description="Naptári esemény módosítása. Használd, ha a felhasználó meg akarja változtatni egy meglévő találkozó időpontját, címét vagy időtartamát.")
+async def modify_meeting(
+    ctx: RunContext,
+    event_title: Annotated[str, "A módosítandó esemény címe (vagy egy része, ami azonosítja)"],
+    new_title: Annotated[str, "Az új cím (ha változik, különben hagyd üresen)"] = "",
+    new_date: Annotated[str, "Az új dátum YYYY-MM-DD formátumban (ha változik)"] = "",
+    new_time: Annotated[str, "Az új időpont HH:MM formátumban (ha változik)"] = "",
+    new_duration_minutes: Annotated[int, "Az új időtartam percben (ha változik)"] = 0,
+) -> str:
+    """Naptári esemény módosítása."""
+    logger.info(f"Modifying meeting: {event_title}")
+
+    events = _read_json(CALENDAR_FILE)
+    if not events:
+        return "Nincs egyetlen esemény sem a naptárban."
+
+    # Find the event by title (fuzzy match)
+    found = None
+    for ev in events:
+        if event_title.lower() in ev.get("title", "").lower():
+            found = ev
+            break
+
+    if not found:
+        titles = ", ".join(e.get("title", "?") for e in events)
+        return f"Nem találtam ilyen eseményt. A naptárban ezek vannak: {titles}"
+
+    try:
+        if new_title:
+            found["title"] = new_title
+        if new_date or new_time:
+            old_dt = datetime.fromisoformat(found["start"])
+            d = new_date or old_dt.strftime("%Y-%m-%d")
+            t = new_time or old_dt.strftime("%H:%M")
+            new_start = datetime.fromisoformat(f"{d}T{t}:00")
+            dur = new_duration_minutes or found.get("duration_minutes", 30)
+            found["start"] = new_start.isoformat()
+            found["end"] = (new_start + timedelta(minutes=dur)).isoformat()
+            found["duration_minutes"] = dur
+        elif new_duration_minutes:
+            start = datetime.fromisoformat(found["start"])
+            found["duration_minutes"] = new_duration_minutes
+            found["end"] = (start + timedelta(minutes=new_duration_minutes)).isoformat()
+
+        _write_json(CALENDAR_FILE, events)
+
+        changes = []
+        if new_title: changes.append(f"cím: {new_title}")
+        if new_date: changes.append(f"dátum: {new_date}")
+        if new_time: changes.append(f"idő: {new_time}")
+        if new_duration_minutes: changes.append(f"időtartam: {new_duration_minutes} perc")
+        return f"Esemény módosítva ({found['title']}): {', '.join(changes)}."
+    except Exception as e:
+        logger.error(f"Modify error: {e}")
+        return f"Hiba a módosításkor: {str(e)}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 8. DELETE CALENDAR EVENT (voice command)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@function_tool(description="Naptári esemény törlése. Használd, ha a felhasználó le akarja mondani vagy törölni akar egy találkozót.")
+async def delete_meeting(
+    ctx: RunContext,
+    event_title: Annotated[str, "A törlendő esemény címe (vagy egy része, ami azonosítja)"],
+) -> str:
+    """Naptári esemény törlése."""
+    logger.info(f"Deleting meeting: {event_title}")
+
+    events = _read_json(CALENDAR_FILE)
+    if not events:
+        return "Nincs egyetlen esemény sem a naptárban."
+
+    # Find and remove
+    original_count = len(events)
+    events = [e for e in events if event_title.lower() not in e.get("title", "").lower()]
+
+    if len(events) == original_count:
+        titles = ", ".join(e.get("title", "?") for e in events)
+        return f"Nem találtam ilyen eseményt. A naptárban ezek vannak: {titles}"
+
+    _write_json(CALENDAR_FILE, events)
+    return f"Esemény törölve: {event_title}."
+
+
 # All tools for easy import
 ALL_TOOLS = [
     send_followup_email,
     check_calendar,
     book_meeting,
+    modify_meeting,
+    delete_meeting,
     get_weather,
     create_task,
     lookup_info,

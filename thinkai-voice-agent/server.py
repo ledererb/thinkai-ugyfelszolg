@@ -160,9 +160,11 @@ Te nem csak beszélgetni tudsz — VALÓDI dolgokat tudsz csinálni! Ha releván
 1. 📧 EMAIL KÜLDÉS: Follow-up emailt tudsz küldeni érdeklődőknek (kérd el a nevet és email címet)
 2. 📅 NAPTÁR ELLENŐRZÉS: Megnézheted a szabad időpontokat 
 3. 📅 IDŐPONT FOGLALÁS: Meetinget tudsz foglalni a naptárba
-4. ⛅ IDŐJÁRÁS: Megmondhatod az aktuális időjárást bármelyik városban
-5. 📝 FELADAT RÖGZÍTÉS: Jegyzeteket, teendőket tudsz rögzíteni
-6. 🔍 TUDÁSBÁZIS: Részletes információkat tudsz keresni a ThinkAI szolgáltatásairól
+4. ✏️ IDŐPONT MÓDOSÍTÁS: Meglévő meeting időpontját, címét módosíthatod
+5. 🗑️ IDŐPONT TÖRLÉS: Meetinget tudsz törölni a naptárból
+6. ⛅ IDŐJÁRÁS: Megmondhatod az aktuális időjárást bármelyik városban
+7. 📝 FELADAT RÖGZÍTÉS: Jegyzeteket, teendőket tudsz rögzíteni
+8. 🔍 TUDÁSBÁZIS: Részletes információkat tudsz keresni a ThinkAI szolgáltatásairól
 
 MINDIG használd az eszközöket, ha a felhasználó kérése arra utal! Ne csak beszélj róla — csináld meg!
 Miután egy eszközt használtál, röviden erősítsd meg az eredményt (pl. "Kész, elküldtem az emailt!").
@@ -247,8 +249,8 @@ async def entrypoint(ctx: JobContext):
             word_timestamps=False,
         ),
         vad=silero.VAD.load(
-            activation_threshold=0.6,
-            min_speech_duration=0.1,
+            activation_threshold=0.75,
+            min_speech_duration=0.25,
             min_silence_duration=0.6,
         ),
     )
