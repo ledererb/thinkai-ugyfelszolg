@@ -1,9 +1,12 @@
 """
 ThinkAI Voice Agent — LiveKit Agents Server
-Real-time voice assistant powered by LiveKit + Deepgram Nova-3 STT + Gemini 2.5 Flash + Cartesia TTS
+Real-time voice assistant powered by LiveKit + Google STT + Gemini 2.5 Flash + Cartesia TTS
+Dynamic HU/EN language switching via LLM detection
 """
 
+import asyncio
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -24,7 +27,7 @@ from livekit.agents import (
     cli,
 )
 
-from livekit.plugins import cartesia, deepgram, google, silero
+from livekit.plugins import cartesia, google, silero
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
@@ -63,7 +66,12 @@ NYELV:
 - Ha angolul szólalnak meg, válaszolj angolul
 - Kövesd a felhasználó nyelvét: ha váltanak, te is válts
 - NE keverd a nyelveket egy válaszon belül
-- A TTS motor magyar módban fut, ezért angolul: számokat ÍRD KI szöveggel ("two hundred" NEM "200")
+
+NYELVVÁLTÁS JELZÉS (KRITIKUS!):
+- Ha a felhasználó ANGOLRA vált, kezdd a válaszod ezzel: [LANG:EN]
+- Ha a felhasználó VISSZAVÁLT magyarra, kezdd a válaszod ezzel: [LANG:HU]
+- Ha nincs nyelvváltás, NE használd a jelzést — csak változáskor!
+- A [LANG:XX] jelzést a felhasználó NEM fogja hallani, csak belső használatra van
 
 A THINKAIRÓL (röviden):
 - ThinkAI Kft. — magyar AI automatizációs cég, thinkai.hu, hello@thinkai.hu
@@ -128,11 +136,41 @@ def _get_system_prompt() -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# LANGUAGE DETECTION — switch STT/TTS dynamically
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_LANG_TAG_RE = re.compile(r"\[LANG:(HU|EN)\]")
+
+
+def _switch_language(new_lang: str, session: AgentSession, current_lang: list):
+    """Switch STT and TTS language if changed."""
+    if new_lang == current_lang[0]:
+        return
+
+    current_lang[0] = new_lang
+    logger.info(f"🌐 Language switch → {new_lang.upper()}")
+
+    try:
+        if new_lang == "en":
+            session.stt.update_options(languages=["en-US", "hu-HU"])
+        else:
+            session.stt.update_options(languages=["hu-HU", "en-US"])
+    except Exception as e:
+        logger.warning(f"STT language switch failed: {e}")
+
+    try:
+        session.tts.update_options(language=new_lang)
+    except Exception as e:
+        logger.warning(f"TTS language switch failed: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # AGENT CLASS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ThinkAIAgent(Agent):
     def __init__(self):
+        self._current_lang = ["hu"]  # mutable for closure
         super().__init__(
             instructions=_get_system_prompt(),
             tools=ALL_TOOLS,
@@ -143,6 +181,73 @@ class ThinkAIAgent(Agent):
     async def on_enter(self):
         """Greet the user when they connect."""
         self.session.say("Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?")
+
+    async def llm_node(self, chat_ctx, tools, model_settings):
+        """Override LLM node to intercept language tags and switch STT/TTS."""
+        stream = Agent.default.llm_node(self, chat_ctx, tools, model_settings)
+
+        if asyncio.iscoroutine(stream):
+            stream = await stream
+
+        # If it's a plain string, check for tags and return
+        if isinstance(stream, str):
+            match = _LANG_TAG_RE.search(stream)
+            if match:
+                _switch_language(match.group(1).lower(), self.session, self._current_lang)
+                stream = _LANG_TAG_RE.sub("", stream).lstrip()
+            return stream
+
+        # If it's an async iterable (streaming), wrap it to filter tags
+        async def _filter_stream():
+            buffer = ""
+            tag_checked = False
+            async for chunk in stream:
+                if isinstance(chunk, str):
+                    if not tag_checked:
+                        buffer += chunk
+                        # Check for tag once we have enough text
+                        if len(buffer) >= 10 or not buffer.startswith("["):
+                            match = _LANG_TAG_RE.search(buffer)
+                            if match:
+                                _switch_language(
+                                    match.group(1).lower(),
+                                    self.session,
+                                    self._current_lang,
+                                )
+                                buffer = _LANG_TAG_RE.sub("", buffer).lstrip()
+                            tag_checked = True
+                            if buffer:
+                                yield buffer
+                            buffer = ""
+                    else:
+                        yield chunk
+                else:
+                    # ChatChunk — pass through, but check text content
+                    if not tag_checked and hasattr(chunk, "text") and chunk.text:
+                        buffer += chunk.text
+                        if len(buffer) >= 10 or not buffer.startswith("["):
+                            match = _LANG_TAG_RE.search(buffer)
+                            if match:
+                                _switch_language(
+                                    match.group(1).lower(),
+                                    self.session,
+                                    self._current_lang,
+                                )
+                            tag_checked = True
+                    yield chunk
+
+            # Flush any remaining buffer
+            if buffer and not tag_checked:
+                match = _LANG_TAG_RE.search(buffer)
+                if match:
+                    _switch_language(
+                        match.group(1).lower(), self.session, self._current_lang
+                    )
+                    buffer = _LANG_TAG_RE.sub("", buffer).lstrip()
+                if buffer:
+                    yield buffer
+
+        return _filter_stream()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -156,27 +261,55 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect()
 
     session = AgentSession(
-        stt=deepgram.STT(
-            model="nova-3",
-            language="hu",
-            detect_language=True,
-            smart_format=True,
-            punctuate=True,
+        stt=google.STT(
+            languages=["hu-HU", "en-US"],
             keywords=[
-                # ── Brand names ───────────────────────────────────────────
-                "ThinkAI:3", "Tinkéjáj:3", "Tinkai:2", "EAISY:3",
-                "Hungarorisk:2", "ListaMester:2",
-                # ── Business terms ────────────────────────────────────────
-                "audit:1", "automatizáció:1", "ügyfélszolgálat:1",
-                "pályázat:1", "DIMOP:1",
-                # ── Email ─────────────────────────────────────────────────
-                "kukac:1", "thinkai.hu:2", "hello@thinkai.hu:2",
-                # ── Common names ──────────────────────────────────────────
-                "Balázs:1", "Gergő:1", "László:1", "Szabolcs:1",
-                "Tamás:1", "Péter:1", "János:1", "András:1",
-                "Zoltán:1", "István:1", "Attila:1",
-                "Nagy:1", "Kovács:1", "Tóth:1", "Szabó:1",
-                "Horváth:1", "Varga:1", "Kiss:1", "Léder:2",
+                # ── Brand names (highest boost) ──────────────────────────
+                ("ThinkAI", 20.0),
+                ("Tink-éjáj", 20.0),
+                ("Tinkéjáj", 20.0),
+                ("Tinkai", 15.0),
+                ("Finkéjáj", 15.0),
+                ("EAISY", 20.0),
+                ("Ízí", 15.0),
+                ("Hungarorisk", 15.0),
+                ("ListaMester", 15.0),
+                ("Könyvelés AI", 10.0),
+                # ── Business/tech terms ──────────────────────────────────
+                ("audit", 10.0),
+                ("AI", 10.0),
+                ("automatizáció", 10.0),
+                ("ügyfélszolgálat", 10.0),
+                ("pályázat", 10.0),
+                ("DIMOP", 10.0),
+                ("ERP", 10.0),
+                ("CRM", 10.0),
+                # ── Email vocabulary ─────────────────────────────────────
+                ("kukac", 10.0),
+                ("gmail", 10.0),
+                ("email", 10.0),
+                ("thinkai.hu", 15.0),
+                ("hello@thinkai.hu", 15.0),
+                # ── Common Hungarian names ───────────────────────────────
+                ("Balázs", 5.0),
+                ("Gergő", 5.0),
+                ("László", 5.0),
+                ("Szabolcs", 5.0),
+                ("Tamás", 5.0),
+                ("Péter", 5.0),
+                ("János", 5.0),
+                ("András", 5.0),
+                ("Zoltán", 5.0),
+                ("István", 5.0),
+                ("Attila", 5.0),
+                ("Nagy", 5.0),
+                ("Kovács", 5.0),
+                ("Tóth", 5.0),
+                ("Szabó", 5.0),
+                ("Horváth", 5.0),
+                ("Varga", 5.0),
+                ("Kiss", 5.0),
+                ("Léder", 10.0),
             ],
         ),
         llm=google.LLM(
@@ -198,8 +331,6 @@ async def entrypoint(ctx: JobContext):
         ),
     )
 
-
-
     await session.start(
         agent=ThinkAIAgent(),
         room=ctx.room,
@@ -216,3 +347,4 @@ if __name__ == "__main__":
             entrypoint_fnc=entrypoint,
         ),
     )
+
