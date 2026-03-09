@@ -19,7 +19,6 @@ load_dotenv(THIS_DIR / ".env")
 from livekit.agents import (
     Agent,
     AgentSession,
-    BackgroundAudioPlayer,
     JobContext,
     WorkerOptions,
     cli,
@@ -162,13 +161,7 @@ async def entrypoint(ctx: JobContext):
         ),
     )
 
-    # Background audio: play a subtle ambient sound while the agent is "thinking"
-    bg_audio = BackgroundAudioPlayer.create(
-        agent_session=session,
-        ambient_sound=BackgroundAudioPlayer.AmbientSound.KEYBOARD_TYPING,
-        thinking_sound=BackgroundAudioPlayer.ThinkingSound.SUBTLE_TYPING,
-    )
-    bg_audio.start()
+
 
     await session.start(
         agent=ThinkAIAgent(),
