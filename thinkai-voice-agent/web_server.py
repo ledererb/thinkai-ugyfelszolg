@@ -1,9 +1,10 @@
 """
 ThinkAI Voice Agent — Web Server
-Serves the voice widget page and generates LiveKit room tokens.
-Includes CORS for embedding on thinkai.hu.
+Serves the voice widget page, generates LiveKit room tokens,
+and provides API endpoints for calendar events and email logs.
 """
 
+import json
 import os
 import uuid
 from pathlib import Path
@@ -16,6 +17,9 @@ from livekit.api import AccessToken, VideoGrants
 
 THIS_DIR = Path(__file__).resolve().parent
 load_dotenv(THIS_DIR / ".env")
+
+CALENDAR_FILE = THIS_DIR / "calendar.json"
+EMAILS_FILE = THIS_DIR / "emails.json"
 
 app = FastAPI(title="ThinkAI Voice Agent")
 
@@ -72,6 +76,32 @@ async def get_token():
         "url": os.getenv("LIVEKIT_URL"),
         "room": room_name,
     })
+
+
+@app.get("/api/calendar")
+async def get_calendar():
+    """Return all calendar events, sorted by start time."""
+    if not CALENDAR_FILE.exists():
+        return JSONResponse({"events": []})
+    try:
+        events = json.loads(CALENDAR_FILE.read_text(encoding="utf-8"))
+        events.sort(key=lambda e: e.get("start", ""))
+        return JSONResponse({"events": events})
+    except Exception:
+        return JSONResponse({"events": []})
+
+
+@app.get("/api/emails")
+async def get_emails():
+    """Return all logged emails, newest first."""
+    if not EMAILS_FILE.exists():
+        return JSONResponse({"emails": []})
+    try:
+        emails = json.loads(EMAILS_FILE.read_text(encoding="utf-8"))
+        emails.reverse()  # newest first
+        return JSONResponse({"emails": emails})
+    except Exception:
+        return JSONResponse({"emails": []})
 
 
 @app.get("/api/health")

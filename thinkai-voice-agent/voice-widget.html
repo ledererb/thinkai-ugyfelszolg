@@ -8,233 +8,281 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: #0a0a1a;
             color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             min-height: 100vh;
-            overflow: hidden;
+            overflow-x: hidden;
         }
 
-        .container {
+        /* ── Layout ─────────────────────────────────────────── */
+        .app {
+            display: grid;
+            grid-template-columns: 1fr 380px 1fr;
+            gap: 0;
+            min-height: 100vh;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1100px) {
+            .app {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+        }
+
+        /* ── Side Panels ────────────────────────────────────── */
+        .side-panel {
+            padding: 1.5rem 1.2rem;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(255,255,255,0.06);
+        }
+        .side-panel:last-child {
+            border-right: none;
+            border-left: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .panel-header .icon { font-size: 1.3rem; }
+        .panel-header h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #ccd6f6;
+            letter-spacing: -0.01em;
+        }
+        .panel-badge {
+            margin-left: auto;
+            background: rgba(102,126,234,0.15);
+            color: #667eea;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+
+        .empty-state {
             text-align: center;
-            padding: 2rem;
-            max-width: 420px;
-            width: 100%;
+            padding: 3rem 1rem;
+            color: #4a5568;
+            font-size: 0.85rem;
+        }
+        .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.4; }
+
+        /* ── Calendar items ─────────────────────────────────── */
+        .cal-item {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 0.75rem 0.85rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+            animation: slideIn 0.3s ease;
+        }
+        .cal-item:hover { background: rgba(255,255,255,0.07); border-color: rgba(102,126,234,0.3); }
+        .cal-item .cal-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 0.25rem;
+        }
+        .cal-item .cal-meta {
+            font-size: 0.75rem;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .cal-item .cal-duration {
+            color: #8892b0;
+            font-size: 0.7rem;
+        }
+        .cal-item .cal-attendee {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 0.2rem;
+        }
+
+        /* ── Email items ────────────────────────────────────── */
+        .email-item {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 0.75rem 0.85rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+            animation: slideIn 0.3s ease;
+        }
+        .email-item:hover { background: rgba(255,255,255,0.07); border-color: rgba(248,87,166,0.3); }
+        .email-item .email-to {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 0.15rem;
+        }
+        .email-item .email-subject {
+            font-size: 0.78rem;
+            color: #f857a6;
+            margin-bottom: 0.3rem;
+        }
+        .email-item .email-body {
+            font-size: 0.75rem;
+            color: #a8b2d1;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .email-item .email-meta {
+            font-size: 0.68rem;
+            color: #64748b;
+            margin-top: 0.35rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .email-status {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 6px;
+        }
+        .email-status.sent { background: rgba(72,187,120,0.15); color: #48bb78; }
+        .email-status.failed { background: rgba(245,101,101,0.15); color: #f56565; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Center Voice Panel ─────────────────────────────── */
+        .voice-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.5rem;
+            position: relative;
         }
 
         .logo {
             font-size: 1.8rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.3rem;
             background: linear-gradient(135deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -0.02em;
         }
-
         .subtitle {
             color: #8892b0;
-            font-size: 0.9rem;
-            margin-bottom: 3rem;
+            font-size: 0.85rem;
+            margin-bottom: 2.5rem;
         }
 
         /* Mic button */
         .mic-btn {
-            width: 120px;
-            height: 120px;
+            width: 110px;
+            height: 110px;
             border-radius: 50%;
             border: none;
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             cursor: pointer;
             position: relative;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1.5rem;
+            margin: 0 auto 1.2rem;
             box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
         }
+        .mic-btn:hover { transform: scale(1.05); box-shadow: 0 12px 48px rgba(102, 126, 234, 0.5); }
+        .mic-btn:active { transform: scale(0.98); }
 
-        .mic-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 12px 48px rgba(102, 126, 234, 0.5);
-        }
-
-        .mic-btn:active {
-            transform: scale(0.98);
-        }
-
-        /* States */
         .mic-btn.listening {
             background: linear-gradient(135deg, #667eea, #764ba2);
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
             animation: pulse-blue 2s infinite;
         }
-
         .mic-btn.thinking {
             background: linear-gradient(135deg, #f6d365, #fda085);
-            box-shadow: 0 8px 32px rgba(246, 211, 101, 0.4);
             animation: pulse-orange 1.5s infinite;
         }
-
         .mic-btn.speaking {
             background: linear-gradient(135deg, #f857a6, #ff5858);
-            box-shadow: 0 8px 32px rgba(248, 87, 166, 0.4);
             animation: pulse-pink 2s infinite;
         }
-
         .mic-btn.connecting {
             background: linear-gradient(135deg, #a8a8a8, #666);
             animation: pulse-gray 1s infinite;
         }
-
         .mic-btn.reconnecting {
             background: linear-gradient(135deg, #f6d365, #fda085);
             animation: pulse-orange 0.8s infinite;
         }
 
         @keyframes pulse-blue {
-
-            0%,
-            100% {
-                box-shadow: 0 0 0 0px rgba(102, 126, 234, 0.4);
-            }
-
-            50% {
-                box-shadow: 0 0 0 20px rgba(102, 126, 234, 0);
-            }
+            0%, 100% { box-shadow: 0 0 0 0px rgba(102, 126, 234, 0.4); }
+            50% { box-shadow: 0 0 0 18px rgba(102, 126, 234, 0); }
         }
-
         @keyframes pulse-pink {
-
-            0%,
-            100% {
-                box-shadow: 0 0 0 0px rgba(248, 87, 166, 0.4);
-            }
-
-            50% {
-                box-shadow: 0 0 0 20px rgba(248, 87, 166, 0);
-            }
+            0%, 100% { box-shadow: 0 0 0 0px rgba(248, 87, 166, 0.4); }
+            50% { box-shadow: 0 0 0 18px rgba(248, 87, 166, 0); }
         }
-
         @keyframes pulse-orange {
-
-            0%,
-            100% {
-                box-shadow: 0 0 0 0px rgba(246, 211, 101, 0.4);
-            }
-
-            50% {
-                box-shadow: 0 0 0 15px rgba(246, 211, 101, 0);
-            }
+            0%, 100% { box-shadow: 0 0 0 0px rgba(246, 211, 101, 0.4); }
+            50% { box-shadow: 0 0 0 14px rgba(246, 211, 101, 0); }
         }
-
         @keyframes pulse-gray {
-
-            0%,
-            100% {
-                box-shadow: 0 0 0 0px rgba(168, 168, 168, 0.3);
-            }
-
-            50% {
-                box-shadow: 0 0 0 15px rgba(168, 168, 168, 0);
-            }
+            0%, 100% { box-shadow: 0 0 0 0px rgba(168, 168, 168, 0.3); }
+            50% { box-shadow: 0 0 0 14px rgba(168, 168, 168, 0); }
         }
 
         .mic-btn.speaking::after {
             content: '';
             position: absolute;
-            width: 140px;
-            height: 140px;
+            width: 130px; height: 130px;
             border-radius: 50%;
             border: 2px solid rgba(248, 87, 166, 0.3);
             animation: ring 2s infinite;
         }
-
         @keyframes ring {
-            0% {
-                transform: scale(1);
-                opacity: 1;
-            }
-
-            100% {
-                transform: scale(1.4);
-                opacity: 0;
-            }
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.4); opacity: 0; }
         }
 
         .status {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: #8892b0;
             min-height: 1.5em;
             transition: all 0.3s;
         }
-
-        .status.listening {
-            color: #667eea;
-        }
-
-        .status.thinking {
-            color: #fda085;
-        }
-
-        .status.speaking {
-            color: #f857a6;
-        }
-
-        .status.connecting {
-            color: #888;
-        }
-
-        .status.reconnecting {
-            color: #fda085;
-        }
-
-        .status.error {
-            color: #ff5858;
-        }
-
-        /* Transcription area */
-        .transcript {
-            margin-top: 2rem;
-            padding: 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            min-height: 60px;
-            font-size: 0.85rem;
-            color: #a8b2d1;
-            text-align: left;
-            max-height: 250px;
-            overflow-y: auto;
-            display: none;
-        }
-
-        .transcript.visible {
-            display: block;
-        }
-
-        .transcript .user {
-            color: #667eea;
-            margin-bottom: 0.4rem;
-        }
-
-        .transcript .agent {
-            color: #f857a6;
-            margin-bottom: 0.4rem;
-        }
+        .status.listening { color: #667eea; }
+        .status.thinking { color: #fda085; }
+        .status.speaking { color: #f857a6; }
+        .status.connecting { color: #888; }
+        .status.reconnecting { color: #fda085; }
+        .status.error { color: #ff5858; }
 
         /* Visualizer */
         .visualizer {
@@ -242,176 +290,176 @@
             align-items: center;
             justify-content: center;
             gap: 3px;
-            height: 40px;
-            margin-bottom: 1rem;
+            height: 36px;
+            margin-bottom: 0.8rem;
             opacity: 0;
             transition: opacity 0.3s;
         }
-
-        .visualizer.active {
-            opacity: 1;
-        }
-
+        .visualizer.active { opacity: 1; }
         .visualizer .bar {
-            width: 4px;
+            width: 3.5px;
             border-radius: 2px;
             height: 6px;
             transition: height 0.1s, background 0.3s;
             background: linear-gradient(180deg, #667eea, #764ba2);
         }
-
-        /* Bar colors change based on who's active */
         .visualizer.agent-speaking .bar {
             background: linear-gradient(180deg, #f857a6, #ff5858);
         }
-
-        .visualizer.active .bar {
-            animation: equalize 0.8s infinite ease-in-out;
-        }
-
-        .visualizer.active .bar:nth-child(1) {
-            animation-delay: 0.0s;
-        }
-
-        .visualizer.active .bar:nth-child(2) {
-            animation-delay: 0.1s;
-        }
-
-        .visualizer.active .bar:nth-child(3) {
-            animation-delay: 0.2s;
-        }
-
-        .visualizer.active .bar:nth-child(4) {
-            animation-delay: 0.3s;
-        }
-
-        .visualizer.active .bar:nth-child(5) {
-            animation-delay: 0.4s;
-        }
-
-        .visualizer.active .bar:nth-child(6) {
-            animation-delay: 0.15s;
-        }
-
-        .visualizer.active .bar:nth-child(7) {
-            animation-delay: 0.25s;
-        }
-
+        .visualizer.active .bar { animation: equalize 0.8s infinite ease-in-out; }
+        .visualizer.active .bar:nth-child(1) { animation-delay: 0.0s; }
+        .visualizer.active .bar:nth-child(2) { animation-delay: 0.1s; }
+        .visualizer.active .bar:nth-child(3) { animation-delay: 0.2s; }
+        .visualizer.active .bar:nth-child(4) { animation-delay: 0.3s; }
+        .visualizer.active .bar:nth-child(5) { animation-delay: 0.4s; }
+        .visualizer.active .bar:nth-child(6) { animation-delay: 0.15s; }
+        .visualizer.active .bar:nth-child(7) { animation-delay: 0.25s; }
         @keyframes equalize {
+            0%, 100% { height: 6px; }
+            50% { height: 28px; }
+        }
 
-            0%,
-            100% {
-                height: 6px;
-            }
+        /* Transcript */
+        .transcript {
+            margin-top: 1.5rem;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            min-height: 50px;
+            font-size: 0.8rem;
+            color: #a8b2d1;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            width: 100%;
+            display: none;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        .transcript.visible { display: block; }
+        .transcript .user { color: #667eea; margin-bottom: 0.3rem; }
+        .transcript .agent { color: #f857a6; margin-bottom: 0.3rem; }
 
-            50% {
-                height: 30px;
-            }
+        /* ── Live dot ───────────────────────────────────────── */
+        .live-dot {
+            width: 6px; height: 6px;
+            background: #48bb78;
+            border-radius: 50%;
+            display: inline-block;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="logo">ThinkAI</div>
-        <div class="subtitle">AI Voice Asszisztens</div>
-
-        <div class="visualizer" id="visualizer">
-            <div class="bar"></div>
-            <div class="bar"></div>
-            <div class="bar"></div>
-            <div class="bar"></div>
-            <div class="bar"></div>
-            <div class="bar"></div>
-            <div class="bar"></div>
+    <div class="app">
+        <!-- LEFT: Calendar -->
+        <div class="side-panel" id="calendarPanel">
+            <div class="panel-header">
+                <span class="icon">📅</span>
+                <h2>Naptár</h2>
+                <span class="panel-badge" id="calBadge">0</span>
+            </div>
+            <div class="panel-content" id="calendarList">
+                <div class="empty-state">
+                    <div class="empty-icon">📅</div>
+                    <p>Nincs még foglalás.<br>Kérd az asszisztenst, hogy foglaljon időpontot!</p>
+                </div>
+            </div>
         </div>
 
-        <button class="mic-btn" id="micBtn" onclick="toggleConnection()">🎤</button>
-        <div class="status" id="status">Kattints a mikrofonra az indításhoz</div>
+        <!-- CENTER: Voice -->
+        <div class="voice-panel">
+            <div class="logo">ThinkAI</div>
+            <div class="subtitle">AI Voice Asszisztens</div>
 
-        <div class="transcript" id="transcript"></div>
+            <div class="visualizer" id="visualizer">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                <div class="bar"></div>
+            </div>
+
+            <button class="mic-btn" id="micBtn" onclick="toggleConnection()">🎤</button>
+            <div class="status" id="status">Kattints a mikrofonra</div>
+            <div class="transcript" id="transcript"></div>
+        </div>
+
+        <!-- RIGHT: Emails -->
+        <div class="side-panel">
+            <div class="panel-header">
+                <span class="icon">📧</span>
+                <h2>Küldött emailek</h2>
+                <span class="panel-badge" id="emailBadge">0</span>
+            </div>
+            <div class="panel-content" id="emailList">
+                <div class="empty-state">
+                    <div class="empty-icon">📧</div>
+                    <p>Még nem küldtél emailt.<br>Kérd az asszisztenst email küldésre!</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import {
-            Room,
-            RoomEvent,
-            Track,
-            ParticipantEvent,
-            ConnectionState,
+            Room, RoomEvent, Track, ParticipantEvent, ConnectionState,
         } from 'https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.esm.mjs';
 
         let room = null;
         let connected = false;
         let reconnecting = false;
         let agentSpeaking = false;
+        let pollInterval = null;
 
         const micBtn = document.getElementById('micBtn');
         const statusEl = document.getElementById('status');
         const visualizer = document.getElementById('visualizer');
         const transcript = document.getElementById('transcript');
 
-        // ── State management ─────────────────────────────────────────────
+        // ── State management ─────────────────────────────────
         function setState(state, message) {
-            // Remove all state classes
             micBtn.classList.remove('listening', 'thinking', 'speaking', 'connecting', 'reconnecting');
             statusEl.classList.remove('listening', 'thinking', 'speaking', 'connecting', 'reconnecting', 'error');
             visualizer.classList.remove('agent-speaking');
-
             micBtn.classList.add(state);
             statusEl.classList.add(state);
             statusEl.textContent = message;
-
-            if (state === 'speaking') {
-                visualizer.classList.add('agent-speaking');
-            }
+            if (state === 'speaking') visualizer.classList.add('agent-speaking');
         }
 
-        // ── Toggle Connection ────────────────────────────────────────────
+        // ── Toggle Connection ────────────────────────────────
         window.toggleConnection = async function () {
-            if (connected) {
-                disconnect();
-            } else {
-                await connect();
-            }
+            if (connected) { disconnect(); } else { await connect(); }
         };
 
         async function connect() {
             setState('connecting', 'Csatlakozás...');
-
             try {
-                // 1. Get token from our server
                 const resp = await fetch('/api/token');
                 if (!resp.ok) throw new Error('Token hiba');
                 const { token, url } = await resp.json();
 
-                // 2. Create LiveKit room
                 room = new Room({
-                    audioCaptureDefaults: {
-                        autoGainControl: true,
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                    },
-                    reconnectPolicy: {
-                        maxRetries: 5,
-                        maxRetryDelay: 5000,
-                    },
+                    audioCaptureDefaults: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
+                    reconnectPolicy: { maxRetries: 5, maxRetryDelay: 5000 },
                 });
 
-                // 3. Handle audio tracks
-                room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
                     if (track.kind === Track.Kind.Audio) {
                         const el = track.attach();
                         el.id = `audio-${participant.identity}`;
                         document.body.appendChild(el);
                     }
                 });
-
                 room.on(RoomEvent.TrackUnsubscribed, (track) => {
                     track.detach().forEach(el => el.remove());
                 });
 
-                // 4. Handle transcriptions
                 room.on(RoomEvent.TranscriptionReceived, (segments, participant) => {
                     for (const seg of segments) {
                         if (seg.final) {
@@ -420,18 +468,13 @@
                         }
                     }
                 });
-
-                room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+                room.on(RoomEvent.DataReceived, (payload) => {
                     try {
-                        const text = new TextDecoder().decode(payload);
-                        const data = JSON.parse(text);
-                        if (data.type === 'transcription' && data.text) {
-                            addTranscript(data.role || 'agent', data.text);
-                        }
-                    } catch (e) { }
+                        const data = JSON.parse(new TextDecoder().decode(payload));
+                        if (data.type === 'transcription' && data.text) addTranscript(data.role || 'agent', data.text);
+                    } catch (e) {}
                 });
 
-                // 5. Track agent speaking state
                 room.on(RoomEvent.ParticipantConnected, (participant) => {
                     participant.on(ParticipantEvent.IsSpeakingChanged, (speaking) => {
                         agentSpeaking = speaking;
@@ -445,29 +488,15 @@
                     });
                 });
 
-                // 6. Connection state changes (auto-reconnect)
                 room.on(RoomEvent.ConnectionStateChanged, (state) => {
-                    switch (state) {
-                        case ConnectionState.Reconnecting:
-                            reconnecting = true;
-                            setState('reconnecting', 'Újracsatlakozás...');
-                            break;
-                        case ConnectionState.Connected:
-                            if (reconnecting) {
-                                reconnecting = false;
-                                setState('listening', 'Újra csatlakozva! Hallgatlak...');
-                            }
-                            break;
+                    if (state === ConnectionState.Reconnecting) {
+                        reconnecting = true; setState('reconnecting', 'Újracsatlakozás...');
+                    } else if (state === ConnectionState.Connected && reconnecting) {
+                        reconnecting = false; setState('listening', 'Újra csatlakozva!');
                     }
                 });
+                room.on(RoomEvent.Disconnected, () => { if (!reconnecting) disconnect(); });
 
-                room.on(RoomEvent.Disconnected, (reason) => {
-                    if (!reconnecting) {
-                        disconnect();
-                    }
-                });
-
-                // 7. Connect with mic enabled
                 await room.connect(url, token);
                 await room.localParticipant.setMicrophoneEnabled(true);
 
@@ -476,46 +505,148 @@
                 visualizer.classList.add('active');
                 transcript.classList.add('visible');
 
+                // Start polling calendar & emails
+                startPolling();
+
             } catch (err) {
                 console.error('Connection error:', err);
                 setState('error', 'Hiba: ' + err.message);
                 micBtn.classList.remove('connecting');
                 setTimeout(() => {
-                    if (!connected) {
-                        statusEl.textContent = 'Kattints a mikrofonra az indításhoz';
-                        statusEl.className = 'status';
-                    }
+                    if (!connected) { statusEl.textContent = 'Kattints a mikrofonra'; statusEl.className = 'status'; }
                 }, 4000);
             }
         }
 
         function disconnect() {
-            if (room) {
-                room.disconnect();
-                room = null;
-            }
-            connected = false;
-            reconnecting = false;
-            agentSpeaking = false;
+            if (room) { room.disconnect(); room = null; }
+            connected = false; reconnecting = false; agentSpeaking = false;
             micBtn.classList.remove('listening', 'thinking', 'speaking', 'connecting', 'reconnecting');
-            statusEl.textContent = 'Kattints a mikrofonra az indításhoz';
+            statusEl.textContent = 'Kattints a mikrofonra';
             statusEl.className = 'status';
             visualizer.classList.remove('active', 'agent-speaking');
+            stopPolling();
         }
 
         function addTranscript(role, text) {
-            if (!text || text.trim() === '') return;
+            if (!text || !text.trim()) return;
             const div = document.createElement('div');
             div.className = role;
             div.textContent = (role === 'user' ? '🗣️ ' : '🤖 ') + text;
             transcript.appendChild(div);
             transcript.scrollTop = transcript.scrollHeight;
-
-            // When we see user text, show "thinking" until agent speaks
-            if (role === 'user' && connected && !agentSpeaking) {
-                setState('thinking', 'Gondolkodom...');
-            }
+            if (role === 'user' && connected && !agentSpeaking) setState('thinking', 'Gondolkodom...');
         }
+
+        // ── Polling ──────────────────────────────────────────
+        let lastCalCount = 0;
+        let lastEmailCount = 0;
+
+        function startPolling() {
+            fetchCalendar();
+            fetchEmails();
+            pollInterval = setInterval(() => {
+                fetchCalendar();
+                fetchEmails();
+            }, 2000);
+        }
+
+        function stopPolling() {
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+        }
+
+        async function fetchCalendar() {
+            try {
+                const resp = await fetch('/api/calendar');
+                const { events } = await resp.json();
+                renderCalendar(events || []);
+            } catch (e) {}
+        }
+
+        async function fetchEmails() {
+            try {
+                const resp = await fetch('/api/emails');
+                const { emails } = await resp.json();
+                renderEmails(emails || []);
+            } catch (e) {}
+        }
+
+        function renderCalendar(events) {
+            const container = document.getElementById('calendarList');
+            const badge = document.getElementById('calBadge');
+            badge.textContent = events.length;
+
+            if (events.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><p>Nincs még foglalás.<br>Kérd az asszisztenst!</p></div>`;
+                return;
+            }
+
+            // Only re-render if count changed
+            if (events.length === lastCalCount) return;
+            lastCalCount = events.length;
+
+            container.innerHTML = events.map(ev => {
+                let dateStr = '';
+                try {
+                    const d = new Date(ev.start);
+                    const months = ['jan', 'feb', 'már', 'ápr', 'máj', 'jún', 'júl', 'aug', 'szep', 'okt', 'nov', 'dec'];
+                    dateStr = `${months[d.getMonth()]} ${d.getDate()}. ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                } catch(e) { dateStr = ev.start; }
+
+                return `<div class="cal-item">
+                    <div class="cal-title">${escHtml(ev.title || 'Esemény')}</div>
+                    <div class="cal-meta">
+                        <span>🕐 ${dateStr}</span>
+                        <span class="cal-duration">· ${ev.duration_minutes || 30} perc</span>
+                    </div>
+                    ${ev.attendee ? `<div class="cal-attendee">👤 ${escHtml(ev.attendee)}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        function renderEmails(emails) {
+            const container = document.getElementById('emailList');
+            const badge = document.getElementById('emailBadge');
+            badge.textContent = emails.length;
+
+            if (emails.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">📧</div><p>Még nem küldtél emailt.<br>Kérd az asszisztenst!</p></div>`;
+                return;
+            }
+
+            if (emails.length === lastEmailCount) return;
+            lastEmailCount = emails.length;
+
+            container.innerHTML = emails.map(em => {
+                let timeStr = '';
+                try {
+                    const d = new Date(em.sent_at);
+                    timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                } catch(e) { timeStr = em.sent_at; }
+
+                const statusClass = em.status === 'sent' ? 'sent' : 'failed';
+                const statusText = em.status === 'sent' ? '✓ Elküldve' : '✗ Hiba';
+
+                return `<div class="email-item">
+                    <div class="email-to">📨 ${escHtml(em.to_name)}</div>
+                    <div class="email-subject">${escHtml(em.subject)}</div>
+                    <div class="email-body">${escHtml(em.message)}</div>
+                    <div class="email-meta">
+                        <span>${timeStr}</span>
+                        <span class="email-status ${statusClass}">${statusText}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function escHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+
+        // Start polling immediately (so panels show data even without voice)
+        startPolling();
     </script>
 </body>
 

@@ -16,10 +16,26 @@ from loguru import logger
 # ── Paths ────────────────────────────────────────────────────────────────────
 THIS_DIR = Path(__file__).resolve().parent
 TASKS_FILE = THIS_DIR / "tasks.json"
+CALENDAR_FILE = THIS_DIR / "calendar.json"
+EMAILS_FILE = THIS_DIR / "emails.json"
+
+
+# ── JSON helpers ─────────────────────────────────────────────────────────────
+def _read_json(path: Path) -> list:
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+    return []
+
+
+def _write_json(path: Path, data: list):
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 1. SEND FOLLOW-UP EMAIL (Brevo Transactional API)
+# 1. SEND FOLLOW-UP EMAIL (Brevo Transactional API) — also logs to emails.json
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @function_tool(description="Follow-up email küldése egy érdeklődőnek vagy ügyfélnek. Használd, ha a felhasználó emailt szeretne küldeni valakinek.")
@@ -41,6 +57,9 @@ async def send_followup_email(
     except Exception:
         api_key = raw_key
     logger.info(f"Sending follow-up email to {recipient_name} <{recipient_email}>")
+
+    sent_ok = False
+    error_msg = ""
 
     try:
         async with httpx.AsyncClient() as client:
@@ -67,94 +86,80 @@ async def send_followup_email(
                 timeout=10,
             )
             resp.raise_for_status()
-            return f"Email sikeresen elküldve {recipient_name} ({recipient_email}) részére."
+            sent_ok = True
     except Exception as e:
         logger.error(f"Email error: {e}")
-        return f"Hiba az email küldésekor: {str(e)}"
+        error_msg = str(e)
 
+    # Log the email regardless of send success
+    emails = _read_json(EMAILS_FILE)
+    emails.append({
+        "id": len(emails) + 1,
+        "to_name": recipient_name,
+        "to_email": recipient_email,
+        "subject": subject,
+        "message": message,
+        "sent_at": datetime.utcnow().isoformat(),
+        "status": "sent" if sent_ok else "failed",
+        "error": error_msg if not sent_ok else None,
+    })
+    _write_json(EMAILS_FILE, emails)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# 2. CHECK CALENDAR AVAILABILITY (Google Calendar API)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _get_google_calendar_service():
-    """Create a Google Calendar service client."""
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-
-    creds_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-    creds_path = os.getenv(
-        "GOOGLE_APPLICATION_CREDENTIALS",
-        str(THIS_DIR / "google-credentials.json"),
-    )
-
-    if creds_json:
-        info = json.loads(creds_json)
-        creds = service_account.Credentials.from_service_account_info(
-            info, scopes=["https://www.googleapis.com/auth/calendar"]
-        )
+    if sent_ok:
+        return f"Email sikeresen elküldve {recipient_name} ({recipient_email}) részére."
     else:
-        creds = service_account.Credentials.from_service_account_file(
-            creds_path, scopes=["https://www.googleapis.com/auth/calendar"]
-        )
+        return f"Hiba az email küldésekor: {error_msg}"
 
-    return build("calendar", "v3", credentials=creds)
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 2. CHECK CALENDAR (local JSON store)
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @function_tool(description="Naptár ellenőrzése: megnézi, milyen események vannak a következő napokban. Használd, ha a felhasználó időpontot keres vagy tudni akarja, mikor szabad a naptár.")
 async def check_calendar(
     ctx: RunContext,
-    days_ahead: Annotated[int, "Hány napra előre nézze a naptárat (alapértelmezett: 5)"] = 5,
+    days_ahead: Annotated[int, "Hány napra előre nézze a naptárat (alapértelmezett: 7)"] = 7,
 ) -> str:
     """Naptár ellenőrzése a következő napokra."""
-    import asyncio
-
-    calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary")
     logger.info(f"Checking calendar for next {days_ahead} days")
 
-    try:
-        service = _get_google_calendar_service()
-        now = datetime.utcnow()
-        time_min = now.isoformat() + "Z"
-        time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
+    events = _read_json(CALENDAR_FILE)
+    if not events:
+        return f"A következő {days_ahead} napban nincsenek rögzített események — teljesen szabad a naptár!"
 
-        loop = asyncio.get_event_loop()
-        events_result = await loop.run_in_executor(
-            None,
-            lambda: service.events()
-            .list(
-                calendarId=calendar_id,
-                timeMin=time_min,
-                timeMax=time_max,
-                singleEvents=True,
-                orderBy="startTime",
-            )
-            .execute(),
-        )
+    now = datetime.utcnow()
+    cutoff = now + timedelta(days=days_ahead)
 
-        events = events_result.get("items", [])
-        if not events:
-            return f"A következő {days_ahead} napban nincsenek rögzített események — teljesen szabad a naptár!"
+    upcoming = []
+    for ev in events:
+        try:
+            ev_dt = datetime.fromisoformat(ev["start"])
+            if now <= ev_dt <= cutoff:
+                upcoming.append(ev)
+        except Exception:
+            continue
 
-        event_list = []
-        for event in events[:10]:
-            start = event["start"].get("dateTime", event["start"].get("date"))
-            summary = event.get("summary", "Névtelen esemény")
-            try:
-                dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
-                formatted = dt.strftime("%m/%d %H:%M")
-            except Exception:
-                formatted = start
-            event_list.append(f"- {formatted}: {summary}")
+    upcoming.sort(key=lambda e: e["start"])
 
-        return f"A következő {days_ahead} napban {len(events)} esemény van:\n" + "\n".join(event_list)
-    except Exception as e:
-        logger.error(f"Calendar error: {e}")
-        return f"Hiba a naptár lekérdezésekor: {str(e)}"
+    if not upcoming:
+        return f"A következő {days_ahead} napban nincsenek rögzített események — teljesen szabad a naptár!"
+
+    event_list = []
+    for ev in upcoming[:10]:
+        try:
+            dt = datetime.fromisoformat(ev["start"])
+            formatted = dt.strftime("%m/%d %H:%M")
+        except Exception:
+            formatted = ev["start"]
+        title = ev.get("title", "Névtelen esemény")
+        duration = ev.get("duration_minutes", 30)
+        event_list.append(f"- {formatted}: {title} ({duration} perc)")
+
+    return f"A következő {days_ahead} napban {len(upcoming)} esemény van:\n" + "\n".join(event_list)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 3. BOOK A MEETING (Google Calendar API)
+# 3. BOOK A MEETING (local JSON store)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @function_tool(description="Találkozó/meeting foglalása a naptárba. Használd, ha a felhasználó időpontot szeretne foglalni.")
@@ -167,35 +172,27 @@ async def book_meeting(
     attendee_email: Annotated[str, "A meghívott email címe (opcionális)"] = "",
 ) -> str:
     """Találkozó foglalása a naptárba."""
-    import asyncio
-
-    calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary")
     logger.info(f"Booking meeting: {title} on {date} at {time}")
 
     try:
-        service = _get_google_calendar_service()
         start_dt = datetime.fromisoformat(f"{date}T{time}:00")
         end_dt = start_dt + timedelta(minutes=duration_minutes)
 
-        event = {
-            "summary": title,
-            "start": {"dateTime": start_dt.isoformat(), "timeZone": "Europe/Budapest"},
-            "end": {"dateTime": end_dt.isoformat(), "timeZone": "Europe/Budapest"},
-        }
-        if attendee_email:
-            event["attendees"] = [{"email": attendee_email}]
-
-        loop = asyncio.get_event_loop()
-        created = await loop.run_in_executor(
-            None,
-            lambda: service.events()
-            .insert(calendarId=calendar_id, body=event, sendUpdates="all")
-            .execute(),
-        )
+        events = _read_json(CALENDAR_FILE)
+        events.append({
+            "id": len(events) + 1,
+            "title": title,
+            "start": start_dt.isoformat(),
+            "end": end_dt.isoformat(),
+            "duration_minutes": duration_minutes,
+            "attendee": attendee_email or None,
+            "created_at": datetime.utcnow().isoformat(),
+        })
+        _write_json(CALENDAR_FILE, events)
 
         result = f"Találkozó sikeresen lefoglalva: {title}, {date} {time}-kor, {duration_minutes} perces."
         if attendee_email:
-            result += f" Meghívó elküldve: {attendee_email}."
+            result += f" Meghívott: {attendee_email}."
         return result
     except Exception as e:
         logger.error(f"Booking error: {e}")
@@ -284,10 +281,7 @@ async def create_task(
     logger.info(f"Creating task: {task}")
 
     try:
-        tasks = []
-        if TASKS_FILE.exists():
-            tasks = json.loads(TASKS_FILE.read_text(encoding="utf-8"))
-
+        tasks = _read_json(TASKS_FILE)
         new_task = {
             "id": len(tasks) + 1,
             "text": task,
@@ -297,7 +291,7 @@ async def create_task(
             "completed": False,
         }
         tasks.append(new_task)
-        TASKS_FILE.write_text(json.dumps(tasks, ensure_ascii=False, indent=2), encoding="utf-8")
+        _write_json(TASKS_FILE, tasks)
 
         result = f'Feladat rögzítve: "{task}"'
         if due_date:
