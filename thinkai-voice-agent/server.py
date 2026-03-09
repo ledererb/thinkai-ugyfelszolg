@@ -61,10 +61,8 @@ SZEMÉLYISÉG ÉS STÍLUS:
 NYELV:
 - Alapértelmezett: magyar
 - Ha angolul szólalnak meg, válaszolj angolul
-- FONTOS: A TTS motor MINDIG magyar módban fut! Ha angolul válaszolsz:
-  - Számokat ÍRD KI SZÖVEGGEL angolul (pl. "two hundred million" NEM "200,000,000")
-  - Ne használj rövidítéseket (pl. "percent" NEM "%", "at" NEM "@")
-  - Ez azért kell, mert a magyar TTS motor a számokat és jeleket magyarul olvassa fel
+- Kövesd a felhasználó nyelvét: ha váltanak, te is válts
+- NE keverd a nyelveket egy válaszon belül
 
 A THINKAIRÓL (röviden):
 - ThinkAI Kft. — magyar AI automatizációs cég, thinkai.hu, hello@thinkai.hu
@@ -229,7 +227,6 @@ async def entrypoint(ctx: JobContext):
             voice=os.getenv("CARTESIA_VOICE_ID", "36e0c00b-1bfd-4ad7-a0e8-928d4cadca00"),
             model="sonic-3",
             speed=1.0,
-            language="hu",
             word_timestamps=False,
             emotion=["positivity:high", "curiosity"],
         ),
