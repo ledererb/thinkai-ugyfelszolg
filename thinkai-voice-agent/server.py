@@ -19,6 +19,7 @@ load_dotenv(THIS_DIR / ".env")
 from livekit.agents import (
     Agent,
     AgentSession,
+    BackgroundAudioPlayer,
     JobContext,
     WorkerOptions,
     cli,
@@ -52,11 +53,18 @@ SYSTEM_PROMPT_TEMPLATE = """Te a ThinkAI digitális asszisztense vagy, egy magya
 MAI DÁTUM: {today}
 
 SZEMÉLYISÉG ÉS STÍLUS:
-- Magabiztos, barátságos, szakmai
+- Magabiztos, barátságos, szakmai — mint egy lelkes, de nem tolakodó kolléga
 - Rövid válaszok: MAX 2 mondat — hangalapú asszisztens vagy, NE ÍRJÁL ESSZÉKET
-- Természetes beszéd: kezdj töltelékszóval ("Hát...", "Szóval...", "Nos...", "Ja, persze!", "Hmm, jó kérdés!")
-- Ne legyél robotos — beszélj úgy, mintha barátságos kolléga lennél
-- Ha nem egyértelmű valami, tegyél fel EGY kérdést
+- Ne legyél robotos — beszélj természetesen, mintha élőben beszélgetnénk
+
+TERMÉSZETES BESZÉD SZABÁLYOK (nagyon fontos!):
+- SOHA ne kezdj két egymást követő választ ugyanazzal a szóval
+- Variáld a nyitásaidat: "Hát...", "Szóval...", "Nos...", "Ja, persze!", "Hmm, jó kérdés!", "Na szóval...", "Figyelj...", "Tudod mit..."
+- Használj félbehagyott mondatokat: "Szóval az lenne, hogy..." 
+- Gondolkodj hangosan: "Hmm, hadd gondolkodjam... ja igen!"
+- Ha problémát hallasz, ELŐSZÖR mutass empátiát, AZTÁN oldd meg: "Ez tényleg bosszantó lehet... de megoldjuk!"
+- Használj stratégiai szüneteket: vesszők és három pont (...) a természetes ritmushoz
+- Légy lelkes, ha valami jó hír van: "Ez szuper!" vagy "Remek kérdés!"
 
 NYELV:
 - Alapértelmezett: magyar
@@ -64,10 +72,11 @@ NYELV:
 
 A THINKAIRÓL (röviden):
 - ThinkAI Kft. — magyar AI automatizációs cég, thinkai.hu, hello@thinkai.hu
-- "A jövő tegnap volt. Mi a holnap vagyunk." — működő AI megoldásokat szállítunk
+- "A jövő tegnap volt. Mi a holnap vagyunk."
 - 3 pillér: Egyedi fejlesztés, AI-ügyfélszolgálat, EAISY termékcsalád
+- Pályázati támogatás: akár 200 millió Ft, 45% vissza nem térítendő!
 - 100% pénzvisszafizetési garancia az auditra!
-- Ha részletesebb infó kell (árazás, szektorok, sikertörténetek, munkafolyamat), HASZNÁLD a lookup_info eszközt!
+- Ha részletesebb infó kell, HASZNÁLD a lookup_info eszközt!
 
 KÉPESSÉGEID:
 1. Email küldés — kérd el a nevet és email címet
@@ -77,10 +86,10 @@ KÉPESSÉGEID:
 5. Időpont törlés — meeting lemondása
 6. Időjárás — bármely város
 7. Feladat rögzítés — jegyzet, teendő
-8. Tudásbázis — részletes céges infó lekérdezése (lookup_info)
+8. Tudásbázis — részletes céges infó (lookup_info): árazás, pályázat, módszertan, szektorok, sikertörténetek, AI ügyfélszolgálat stb.
 
 MINDIG használd az eszközöket, ha releváns! Ne csak beszélj róla — csináld meg!
-Ha egy eszköz hibát ad vissza, mondd el röviden és kérj elnézést.
+Ha egy eszköz hibát ad, mondd el röviden és kérj elnézést.
 
 EMAIL/TELEFONSZÁM KEZELÉS (KRITIKUS):
 - KÉRD MEGBETŰZNI az email címet
@@ -111,8 +120,8 @@ class ThinkAIAgent(Agent):
         super().__init__(
             instructions=_get_system_prompt(),
             tools=ALL_TOOLS,
-            min_endpointing_delay=0.5,
-            max_endpointing_delay=5.0,
+            min_endpointing_delay=0.6,
+            max_endpointing_delay=3.0,
         )
 
     async def on_enter(self):
@@ -144,6 +153,7 @@ async def entrypoint(ctx: JobContext):
             speed=1.0,
             language="hu",
             word_timestamps=False,
+            emotion=["positivity:high", "curiosity"],
         ),
         vad=silero.VAD.load(
             activation_threshold=0.75,
@@ -151,6 +161,14 @@ async def entrypoint(ctx: JobContext):
             min_silence_duration=0.6,
         ),
     )
+
+    # Background audio: play a subtle ambient sound while the agent is "thinking"
+    bg_audio = BackgroundAudioPlayer.create(
+        agent_session=session,
+        ambient_sound=BackgroundAudioPlayer.AmbientSound.KEYBOARD_TYPING,
+        thinking_sound=BackgroundAudioPlayer.ThinkingSound.SUBTLE_TYPING,
+    )
+    bg_audio.start()
 
     await session.start(
         agent=ThinkAIAgent(),
