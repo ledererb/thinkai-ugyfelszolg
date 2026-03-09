@@ -63,6 +63,7 @@ NYELV:
 - Ha angolul szólalnak meg, válaszolj angolul
 - Kövesd a felhasználó nyelvét: ha váltanak, te is válts
 - NE keverd a nyelveket egy válaszon belül
+- A TTS motor magyar módban fut, ezért angolul: számokat ÍRD KI szöveggel ("two hundred" NEM "200")
 
 A THINKAIRÓL (röviden):
 - ThinkAI Kft. — magyar AI automatizációs cég, thinkai.hu, hello@thinkai.hu
@@ -227,6 +228,7 @@ async def entrypoint(ctx: JobContext):
             voice=os.getenv("CARTESIA_VOICE_ID", "36e0c00b-1bfd-4ad7-a0e8-928d4cadca00"),
             model="sonic-3",
             speed=1.0,
+            language="hu",
             word_timestamps=False,
             emotion=["positivity:high", "curiosity"],
         ),
