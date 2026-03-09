@@ -169,7 +169,12 @@ async def entrypoint(ctx: JobContext):
             keywords=[
                 # ── Brand names (highest boost) ──────────────────────────
                 ("ThinkAI", 20.0),
+                ("Tink-éjáj", 20.0),
+                ("Tinkéjáj", 20.0),
+                ("Tinkai", 15.0),
+                ("Finkéjáj", 15.0),
                 ("EAISY", 20.0),
+                ("Ízí", 15.0),
                 ("Hungarorisk", 15.0),
                 ("ListaMester", 15.0),
                 ("Könyvelés AI", 10.0),

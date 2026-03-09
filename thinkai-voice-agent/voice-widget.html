@@ -8,8 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: #0a0a1a;
             color: #ffffff;
@@ -39,11 +45,12 @@
             padding: 1.5rem 1.2rem;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid rgba(255,255,255,0.06);
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
         }
+
         .side-panel:last-child {
             border-right: none;
-            border-left: 1px solid rgba(255,255,255,0.06);
+            border-left: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .panel-header {
@@ -52,18 +59,23 @@
             gap: 0.5rem;
             margin-bottom: 1rem;
             padding-bottom: 0.75rem;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .panel-header .icon { font-size: 1.3rem; }
+
+        .panel-header .icon {
+            font-size: 1.3rem;
+        }
+
         .panel-header h2 {
             font-size: 0.95rem;
             font-weight: 600;
             color: #ccd6f6;
             letter-spacing: -0.01em;
         }
+
         .panel-badge {
             margin-left: auto;
-            background: rgba(102,126,234,0.15);
+            background: rgba(102, 126, 234, 0.15);
             color: #667eea;
             font-size: 0.7rem;
             font-weight: 600;
@@ -75,7 +87,7 @@
             flex: 1;
             overflow-y: auto;
             scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.1) transparent;
+            scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
         }
 
         .empty-state {
@@ -84,25 +96,36 @@
             color: #4a5568;
             font-size: 0.85rem;
         }
-        .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.4; }
+
+        .empty-state .empty-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+            opacity: 0.4;
+        }
 
         /* ── Calendar items ─────────────────────────────────── */
         .cal-item {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 10px;
             padding: 0.75rem 0.85rem;
             margin-bottom: 0.5rem;
             transition: all 0.2s;
             animation: slideIn 0.3s ease;
         }
-        .cal-item:hover { background: rgba(255,255,255,0.07); border-color: rgba(102,126,234,0.3); }
+
+        .cal-item:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
         .cal-item .cal-title {
             font-size: 0.85rem;
             font-weight: 600;
             color: #e2e8f0;
             margin-bottom: 0.25rem;
         }
+
         .cal-item .cal-meta {
             font-size: 0.75rem;
             color: #667eea;
@@ -110,10 +133,12 @@
             align-items: center;
             gap: 0.4rem;
         }
+
         .cal-item .cal-duration {
             color: #8892b0;
             font-size: 0.7rem;
         }
+
         .cal-item .cal-attendee {
             font-size: 0.7rem;
             color: #64748b;
@@ -122,26 +147,33 @@
 
         /* ── Email items ────────────────────────────────────── */
         .email-item {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 10px;
             padding: 0.75rem 0.85rem;
             margin-bottom: 0.5rem;
             transition: all 0.2s;
             animation: slideIn 0.3s ease;
         }
-        .email-item:hover { background: rgba(255,255,255,0.07); border-color: rgba(248,87,166,0.3); }
+
+        .email-item:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(248, 87, 166, 0.3);
+        }
+
         .email-item .email-to {
             font-size: 0.85rem;
             font-weight: 600;
             color: #e2e8f0;
             margin-bottom: 0.15rem;
         }
+
         .email-item .email-subject {
             font-size: 0.78rem;
             color: #f857a6;
             margin-bottom: 0.3rem;
         }
+
         .email-item .email-body {
             font-size: 0.75rem;
             color: #a8b2d1;
@@ -151,6 +183,7 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+
         .email-item .email-meta {
             font-size: 0.68rem;
             color: #64748b;
@@ -159,6 +192,7 @@
             justify-content: space-between;
             align-items: center;
         }
+
         .email-status {
             display: inline-block;
             font-size: 0.65rem;
@@ -166,12 +200,27 @@
             padding: 1px 6px;
             border-radius: 6px;
         }
-        .email-status.sent { background: rgba(72,187,120,0.15); color: #48bb78; }
-        .email-status.failed { background: rgba(245,101,101,0.15); color: #f56565; }
+
+        .email-status.sent {
+            background: rgba(72, 187, 120, 0.15);
+            color: #48bb78;
+        }
+
+        .email-status.failed {
+            background: rgba(245, 101, 101, 0.15);
+            color: #f56565;
+        }
 
         @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-8px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* ── Center Voice Panel ─────────────────────────────── */
@@ -193,6 +242,7 @@
             -webkit-text-fill-color: transparent;
             letter-spacing: -0.02em;
         }
+
         .subtitle {
             color: #8892b0;
             font-size: 0.85rem;
@@ -217,58 +267,109 @@
             margin: 0 auto 1.2rem;
             box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
         }
-        .mic-btn:hover { transform: scale(1.05); box-shadow: 0 12px 48px rgba(102, 126, 234, 0.5); }
-        .mic-btn:active { transform: scale(0.98); }
+
+        .mic-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 48px rgba(102, 126, 234, 0.5);
+        }
+
+        .mic-btn:active {
+            transform: scale(0.98);
+        }
 
         .mic-btn.listening {
             background: linear-gradient(135deg, #667eea, #764ba2);
             animation: pulse-blue 2s infinite;
         }
+
         .mic-btn.thinking {
             background: linear-gradient(135deg, #f6d365, #fda085);
             animation: pulse-orange 1.5s infinite;
         }
+
         .mic-btn.speaking {
             background: linear-gradient(135deg, #f857a6, #ff5858);
             animation: pulse-pink 2s infinite;
         }
+
         .mic-btn.connecting {
             background: linear-gradient(135deg, #a8a8a8, #666);
             animation: pulse-gray 1s infinite;
         }
+
         .mic-btn.reconnecting {
             background: linear-gradient(135deg, #f6d365, #fda085);
             animation: pulse-orange 0.8s infinite;
         }
 
         @keyframes pulse-blue {
-            0%, 100% { box-shadow: 0 0 0 0px rgba(102, 126, 234, 0.4); }
-            50% { box-shadow: 0 0 0 18px rgba(102, 126, 234, 0); }
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0px rgba(102, 126, 234, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 18px rgba(102, 126, 234, 0);
+            }
         }
+
         @keyframes pulse-pink {
-            0%, 100% { box-shadow: 0 0 0 0px rgba(248, 87, 166, 0.4); }
-            50% { box-shadow: 0 0 0 18px rgba(248, 87, 166, 0); }
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0px rgba(248, 87, 166, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 18px rgba(248, 87, 166, 0);
+            }
         }
+
         @keyframes pulse-orange {
-            0%, 100% { box-shadow: 0 0 0 0px rgba(246, 211, 101, 0.4); }
-            50% { box-shadow: 0 0 0 14px rgba(246, 211, 101, 0); }
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0px rgba(246, 211, 101, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 14px rgba(246, 211, 101, 0);
+            }
         }
+
         @keyframes pulse-gray {
-            0%, 100% { box-shadow: 0 0 0 0px rgba(168, 168, 168, 0.3); }
-            50% { box-shadow: 0 0 0 14px rgba(168, 168, 168, 0); }
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0px rgba(168, 168, 168, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 0 14px rgba(168, 168, 168, 0);
+            }
         }
 
         .mic-btn.speaking::after {
             content: '';
             position: absolute;
-            width: 130px; height: 130px;
+            width: 130px;
+            height: 130px;
             border-radius: 50%;
             border: 2px solid rgba(248, 87, 166, 0.3);
             animation: ring 2s infinite;
         }
+
         @keyframes ring {
-            0% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(1.4); opacity: 0; }
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1.4);
+                opacity: 0;
+            }
         }
 
         .status {
@@ -277,12 +378,30 @@
             min-height: 1.5em;
             transition: all 0.3s;
         }
-        .status.listening { color: #667eea; }
-        .status.thinking { color: #fda085; }
-        .status.speaking { color: #f857a6; }
-        .status.connecting { color: #888; }
-        .status.reconnecting { color: #fda085; }
-        .status.error { color: #ff5858; }
+
+        .status.listening {
+            color: #667eea;
+        }
+
+        .status.thinking {
+            color: #fda085;
+        }
+
+        .status.speaking {
+            color: #f857a6;
+        }
+
+        .status.connecting {
+            color: #888;
+        }
+
+        .status.reconnecting {
+            color: #fda085;
+        }
+
+        .status.error {
+            color: #ff5858;
+        }
 
         /* Visualizer */
         .visualizer {
@@ -295,7 +414,11 @@
             opacity: 0;
             transition: opacity 0.3s;
         }
-        .visualizer.active { opacity: 1; }
+
+        .visualizer.active {
+            opacity: 1;
+        }
+
         .visualizer .bar {
             width: 3.5px;
             border-radius: 2px;
@@ -303,20 +426,53 @@
             transition: height 0.1s, background 0.3s;
             background: linear-gradient(180deg, #667eea, #764ba2);
         }
+
         .visualizer.agent-speaking .bar {
             background: linear-gradient(180deg, #f857a6, #ff5858);
         }
-        .visualizer.active .bar { animation: equalize 0.8s infinite ease-in-out; }
-        .visualizer.active .bar:nth-child(1) { animation-delay: 0.0s; }
-        .visualizer.active .bar:nth-child(2) { animation-delay: 0.1s; }
-        .visualizer.active .bar:nth-child(3) { animation-delay: 0.2s; }
-        .visualizer.active .bar:nth-child(4) { animation-delay: 0.3s; }
-        .visualizer.active .bar:nth-child(5) { animation-delay: 0.4s; }
-        .visualizer.active .bar:nth-child(6) { animation-delay: 0.15s; }
-        .visualizer.active .bar:nth-child(7) { animation-delay: 0.25s; }
+
+        .visualizer.active .bar {
+            animation: equalize 0.8s infinite ease-in-out;
+        }
+
+        .visualizer.active .bar:nth-child(1) {
+            animation-delay: 0.0s;
+        }
+
+        .visualizer.active .bar:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .visualizer.active .bar:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .visualizer.active .bar:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        .visualizer.active .bar:nth-child(5) {
+            animation-delay: 0.4s;
+        }
+
+        .visualizer.active .bar:nth-child(6) {
+            animation-delay: 0.15s;
+        }
+
+        .visualizer.active .bar:nth-child(7) {
+            animation-delay: 0.25s;
+        }
+
         @keyframes equalize {
-            0%, 100% { height: 6px; }
-            50% { height: 28px; }
+
+            0%,
+            100% {
+                height: 6px;
+            }
+
+            50% {
+                height: 28px;
+            }
         }
 
         /* Transcript */
@@ -335,23 +491,43 @@
             width: 100%;
             display: none;
             scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.1) transparent;
+            scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
         }
-        .transcript.visible { display: block; }
-        .transcript .user { color: #667eea; margin-bottom: 0.3rem; }
-        .transcript .agent { color: #f857a6; margin-bottom: 0.3rem; }
+
+        .transcript.visible {
+            display: block;
+        }
+
+        .transcript .user {
+            color: #667eea;
+            margin-bottom: 0.3rem;
+        }
+
+        .transcript .agent {
+            color: #f857a6;
+            margin-bottom: 0.3rem;
+        }
 
         /* ── Live dot ───────────────────────────────────────── */
         .live-dot {
-            width: 6px; height: 6px;
+            width: 6px;
+            height: 6px;
             background: #48bb78;
             border-radius: 50%;
             display: inline-block;
             animation: blink 2s infinite;
         }
+
         @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
         }
     </style>
 </head>
@@ -379,8 +555,12 @@
             <div class="subtitle">AI Voice Asszisztens</div>
 
             <div class="visualizer" id="visualizer">
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
                 <div class="bar"></div>
             </div>
 
@@ -472,7 +652,7 @@
                     try {
                         const data = JSON.parse(new TextDecoder().decode(payload));
                         if (data.type === 'transcription' && data.text) addTranscript(data.role || 'agent', data.text);
-                    } catch (e) {}
+                    } catch (e) { }
                 });
 
                 room.on(RoomEvent.ParticipantConnected, (participant) => {
@@ -539,7 +719,7 @@
         }
 
         // ── Polling ──────────────────────────────────────────
-        let lastCalCount = 0;
+        let lastCalHash = '';
         let lastEmailCount = 0;
 
         function startPolling() {
@@ -560,7 +740,7 @@
                 const resp = await fetch('/api/calendar');
                 const { events } = await resp.json();
                 renderCalendar(events || []);
-            } catch (e) {}
+            } catch (e) { }
         }
 
         async function fetchEmails() {
@@ -568,7 +748,7 @@
                 const resp = await fetch('/api/emails');
                 const { emails } = await resp.json();
                 renderEmails(emails || []);
-            } catch (e) {}
+            } catch (e) { }
         }
 
         function renderCalendar(events) {
@@ -581,17 +761,18 @@
                 return;
             }
 
-            // Only re-render if count changed
-            if (events.length === lastCalCount) return;
-            lastCalCount = events.length;
+            // Only re-render if content changed (not just count)
+            const calHash = JSON.stringify(events);
+            if (calHash === lastCalHash) return;
+            lastCalHash = calHash;
 
             container.innerHTML = events.map(ev => {
                 let dateStr = '';
                 try {
                     const d = new Date(ev.start);
                     const months = ['jan', 'feb', 'már', 'ápr', 'máj', 'jún', 'júl', 'aug', 'szep', 'okt', 'nov', 'dec'];
-                    dateStr = `${months[d.getMonth()]} ${d.getDate()}. ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                } catch(e) { dateStr = ev.start; }
+                    dateStr = `${months[d.getMonth()]} ${d.getDate()}. ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                } catch (e) { dateStr = ev.start; }
 
                 return `<div class="cal-item">
                     <div class="cal-title">${escHtml(ev.title || 'Esemény')}</div>
@@ -621,8 +802,8 @@
                 let timeStr = '';
                 try {
                     const d = new Date(em.sent_at);
-                    timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                } catch(e) { timeStr = em.sent_at; }
+                    timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                } catch (e) { timeStr = em.sent_at; }
 
                 const statusClass = em.status === 'sent' ? 'sent' : 'failed';
                 const statusText = em.status === 'sent' ? '✓ Elküldve' : '✗ Hiba';
