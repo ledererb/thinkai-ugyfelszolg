@@ -156,6 +156,34 @@ def _get_system_prompt() -> str:
 
 _LANG_TAG_RE = re.compile(r"\[LANG:(HU|EN)\]")
 
+# ── TTS pronunciation replacements (applied before Cartesia gets the text) ────
+# Keys are case-sensitive. The LLM writes natural text; this map ensures
+# Cartesia pronounces foreign/brand words correctly in Hungarian mode.
+_TTS_REPLACEMENTS = {
+    # Brand names
+    "ThinkAI": "Tink-éj-áj",
+    "thinkAI": "tink-éj-áj",
+    "Thinkai": "Tink-éj-áj",
+    "thinkai": "tink-éj-áj",
+    "EAISY": "Ízí",
+    "Eaisy": "Ízí",
+    "eaisy": "ízí",
+    # Domains & emails
+    "thinkai.hu": "tink-éj-áj pont há ú",
+    "hello@thinkai.hu": "helló kukac tink-éj-áj pont há ú",
+    # Tech terms the Hungarian TTS mangles
+    "AI": "éj-áj",
+    "CRM": "szé-er-em",
+    "ERP": "é-er-pé",
+}
+
+
+def _apply_tts_replacements(text: str) -> str:
+    """Replace brand/tech terms with phonetic Hungarian spellings for TTS."""
+    for original, phonetic in _TTS_REPLACEMENTS.items():
+        text = text.replace(original, phonetic)
+    return text
+
 
 def _switch_language(new_lang: str, session: AgentSession, current_lang: list):
     """Switch STT and TTS language if changed."""
@@ -257,9 +285,11 @@ class ThinkAIAgent(Agent):
 
         # Step 2: Create async generator with buffered + remaining text
         async def _cleaned_text():
-            # Yield buffered chunks first
+            # Yield buffered chunks first (with pronunciation fixes)
             for chunk in first_chunks:
                 if chunk:
+                    if self._current_lang[0] == "hu":
+                        chunk = _apply_tts_replacements(chunk)
                     yield chunk
 
             # Then yield remaining chunks, stripping any late tags
@@ -273,6 +303,8 @@ class ThinkAIAgent(Agent):
                     )
                     chunk = _LANG_TAG_RE.sub("", chunk).lstrip()
                 if chunk:
+                    if self._current_lang[0] == "hu":
+                        chunk = _apply_tts_replacements(chunk)
                     yield chunk
 
         # Step 3: NOW create TTS stream (language is already set correctly)
@@ -315,24 +347,16 @@ async def entrypoint(ctx: JobContext):
                 ("DIMOP", 10.0),
                 ("ERP", 10.0),
                 ("CRM", 10.0),
+                ("konzultáció", 8.0),
+                ("integráció", 8.0),
+                ("chatbot", 8.0),
                 # ── Email vocabulary ─────────────────────────────────────
                 ("kukac", 10.0),
                 ("gmail", 10.0),
                 ("email", 10.0),
                 ("thinkai.hu", 15.0),
                 ("hello@thinkai.hu", 15.0),
-                # ── Common Hungarian names ───────────────────────────────
-                ("Balázs", 5.0),
-                ("Gergő", 5.0),
-                ("László", 5.0),
-                ("Szabolcs", 5.0),
-                ("Tamás", 5.0),
-                ("Péter", 5.0),
-                ("János", 5.0),
-                ("András", 5.0),
-                ("Zoltán", 5.0),
-                ("István", 5.0),
-                ("Attila", 5.0),
+                # ── Surnames (top 30) ────────────────────────────────────
                 ("Nagy", 5.0),
                 ("Kovács", 5.0),
                 ("Tóth", 5.0),
@@ -340,6 +364,82 @@ async def entrypoint(ctx: JobContext):
                 ("Horváth", 5.0),
                 ("Varga", 5.0),
                 ("Kiss", 5.0),
+                ("Molnár", 5.0),
+                ("Németh", 5.0),
+                ("Farkas", 5.0),
+                ("Balogh", 5.0),
+                ("Papp", 5.0),
+                ("Takács", 5.0),
+                ("Juhász", 5.0),
+                ("Lakatos", 5.0),
+                ("Mészáros", 5.0),
+                ("Oláh", 5.0),
+                ("Simon", 5.0),
+                ("Rácz", 5.0),
+                ("Fekete", 5.0),
+                ("Szilágyi", 5.0),
+                ("Török", 5.0),
+                ("Fehér", 5.0),
+                ("Balázs", 5.0),
+                ("Gál", 5.0),
+                ("Kis", 5.0),
+                ("Szűcs", 5.0),
+                ("Kocsis", 5.0),
+                ("Orsós", 5.0),
+                ("Pintér", 5.0),
+                # ── Male first names (top 25) ───────────────────────────
+                ("László", 5.0),
+                ("István", 5.0),
+                ("József", 5.0),
+                ("János", 5.0),
+                ("Zoltán", 5.0),
+                ("Sándor", 5.0),
+                ("Ferenc", 5.0),
+                ("Gábor", 5.0),
+                ("Attila", 5.0),
+                ("Péter", 5.0),
+                ("Tamás", 5.0),
+                ("Zsolt", 5.0),
+                ("Tibor", 5.0),
+                ("András", 5.0),
+                ("Csaba", 5.0),
+                ("Imre", 5.0),
+                ("Gergő", 5.0),
+                ("György", 5.0),
+                ("Miklós", 5.0),
+                ("Róbert", 5.0),
+                ("Szabolcs", 5.0),
+                ("Dániel", 5.0),
+                ("Ádám", 5.0),
+                ("Béla", 5.0),
+                ("Márk", 5.0),
+                # ── Female first names (top 25) ─────────────────────────
+                ("Mária", 5.0),
+                ("Erzsébet", 5.0),
+                ("Katalin", 5.0),
+                ("Ilona", 5.0),
+                ("Éva", 5.0),
+                ("Anna", 5.0),
+                ("Zsuzsanna", 5.0),
+                ("Margit", 5.0),
+                ("Judit", 5.0),
+                ("Ágnes", 5.0),
+                ("Andrea", 5.0),
+                ("Erika", 5.0),
+                ("Krisztina", 5.0),
+                ("Mónika", 5.0),
+                ("Edit", 5.0),
+                ("Gabriella", 5.0),
+                ("Szilvia", 5.0),
+                ("Anikó", 5.0),
+                ("Nikolett", 5.0),
+                ("Viktória", 5.0),
+                ("Réka", 5.0),
+                ("Petra", 5.0),
+                ("Dóra", 5.0),
+                ("Nóra", 5.0),
+                ("Boglárka", 5.0),
+                # ── Special ──────────────────────────────────────────────
                 ("Léder", 10.0),
             ],
         ),
