@@ -186,80 +186,36 @@ class ThinkAIAgent(Agent):
         self.session.say("Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?")
 
     async def llm_node(self, chat_ctx, tools, model_settings):
-        """Override LLM node: context window, language detection, error fallback."""
-        # ── Context window: keep system + last N items ─────────────
+        """Override LLM node: context window + error fallback."""
         chat_ctx.truncate(max_items=20)
 
-        # ── Call LLM with error fallback ──────────────────────────────
         try:
             stream = Agent.default.llm_node(self, chat_ctx, tools, model_settings)
             if asyncio.iscoroutine(stream):
                 stream = await stream
+            return stream
         except Exception as e:
             logger.error(f"LLM error: {e}")
             return "Elnézést, technikai hiba történt. Kérlek, próbáld újra!"
 
-        # If it's a plain string, check for tags and return
-        if isinstance(stream, str):
-            match = _LANG_TAG_RE.search(stream)
-            if match:
-                _switch_language(match.group(1).lower(), self.session, self._current_lang)
-                stream = _LANG_TAG_RE.sub("", stream).lstrip()
-            return stream
+    def tts_node(self, text, model_settings):
+        """Override TTS node: detect [LANG:XX] tags, switch language, strip tags."""
+        async def _filtered_text():
+            async for chunk in text:
+                # Check for language tag
+                match = _LANG_TAG_RE.search(chunk)
+                if match:
+                    _switch_language(
+                        match.group(1).lower(),
+                        self.session,
+                        self._current_lang,
+                    )
+                    chunk = _LANG_TAG_RE.sub("", chunk).lstrip()
 
-        # If it's an async iterable (streaming), wrap it to filter tags
-        async def _filter_stream():
-            buffer = ""
-            tag_checked = False
-            try:
-                async for chunk in stream:
-                    if isinstance(chunk, str):
-                        if not tag_checked:
-                            buffer += chunk
-                            if len(buffer) >= 10 or not buffer.startswith("["):
-                                match = _LANG_TAG_RE.search(buffer)
-                                if match:
-                                    _switch_language(
-                                        match.group(1).lower(),
-                                        self.session,
-                                        self._current_lang,
-                                    )
-                                    buffer = _LANG_TAG_RE.sub("", buffer).lstrip()
-                                tag_checked = True
-                                if buffer:
-                                    yield buffer
-                                buffer = ""
-                        else:
-                            yield chunk
-                    else:
-                        if not tag_checked and hasattr(chunk, "text") and chunk.text:
-                            buffer += chunk.text
-                            if len(buffer) >= 10 or not buffer.startswith("["):
-                                match = _LANG_TAG_RE.search(buffer)
-                                if match:
-                                    _switch_language(
-                                        match.group(1).lower(),
-                                        self.session,
-                                        self._current_lang,
-                                    )
-                                tag_checked = True
-                        yield chunk
+                if chunk:  # Don't yield empty strings
+                    yield chunk
 
-                # Flush remaining buffer
-                if buffer and not tag_checked:
-                    match = _LANG_TAG_RE.search(buffer)
-                    if match:
-                        _switch_language(
-                            match.group(1).lower(), self.session, self._current_lang
-                        )
-                        buffer = _LANG_TAG_RE.sub("", buffer).lstrip()
-                    if buffer:
-                        yield buffer
-            except Exception as e:
-                logger.error(f"LLM stream error: {e}")
-                yield "Elnézést, technikai hiba történt. Kérlek, próbáld újra!"
-
-        return _filter_stream()
+        return Agent.default.tts_node(self, _filtered_text(), model_settings)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
