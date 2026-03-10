@@ -266,6 +266,7 @@
             justify-content: center;
             margin: 0 auto 1.2rem;
             box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+            animation: pulse-idle 2.5s infinite;
         }
 
         .mic-btn:hover {
@@ -300,6 +301,20 @@
         .mic-btn.reconnecting {
             background: linear-gradient(135deg, #f6d365, #fda085);
             animation: pulse-orange 0.8s infinite;
+        }
+
+        @keyframes pulse-idle {
+
+            0%,
+            100% {
+                box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+                transform: scale(1);
+            }
+
+            50% {
+                box-shadow: 0 8px 48px rgba(102, 126, 234, 0.5);
+                transform: scale(1.03);
+            }
         }
 
         @keyframes pulse-blue {
@@ -565,7 +580,7 @@
             </div>
 
             <button class="mic-btn" id="micBtn" onclick="toggleConnection()">🎤</button>
-            <div class="status" id="status">Kattints a mikrofonra</div>
+            <div class="status" id="status">Kattints ide, és beszélj velem!</div>
             <div class="transcript" id="transcript"></div>
         </div>
 
@@ -693,7 +708,7 @@
                 setState('error', 'Hiba: ' + err.message);
                 micBtn.classList.remove('connecting');
                 setTimeout(() => {
-                    if (!connected) { statusEl.textContent = 'Kattints a mikrofonra'; statusEl.className = 'status'; }
+                    if (!connected) { statusEl.textContent = 'Kattints ide, és beszélj velem!'; statusEl.className = 'status'; }
                 }, 4000);
             }
         }
@@ -702,7 +717,7 @@
             if (room) { room.disconnect(); room = null; }
             connected = false; reconnecting = false; agentSpeaking = false;
             micBtn.classList.remove('listening', 'thinking', 'speaking', 'connecting', 'reconnecting');
-            statusEl.textContent = 'Kattints a mikrofonra';
+            statusEl.textContent = 'Kattints ide, és beszélj velem!';
             statusEl.className = 'status';
             visualizer.classList.remove('active', 'agent-speaking');
             stopPolling();
@@ -710,6 +725,9 @@
 
         function addTranscript(role, text) {
             if (!text || !text.trim()) return;
+            // Strip [LANG:XX] tags from display
+            text = text.replace(/\[LANG:(HU|EN)\]/g, '').trim();
+            if (!text) return;
             const div = document.createElement('div');
             div.className = role;
             div.textContent = (role === 'user' ? '🗣️ ' : '🤖 ') + text;
@@ -810,6 +828,7 @@
 
                 return `<div class="email-item">
                     <div class="email-to">📨 ${escHtml(em.to_name)}</div>
+                    <div class="email-addr" style="font-size:0.75rem;color:#667eea;margin-bottom:0.3rem;">${escHtml(em.to_email || '')}</div>
                     <div class="email-subject">${escHtml(em.subject)}</div>
                     <div class="email-body">${escHtml(em.message)}</div>
                     <div class="email-meta">

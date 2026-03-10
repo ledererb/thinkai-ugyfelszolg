@@ -127,6 +127,18 @@ EMAIL/TELEFONSZÁM KEZELÉS (KRITIKUS):
 MEMÓRIA:
 Ha megmondják a nevüket/cégüket, jegyezd meg és használd!
 
+GUARDRAILS:
+- Ha a felhasználó olyat kérdez, amihez nincs közöd (politika, sport, személyes tanácsok, viccek stb.), udvariasan tereld vissza: "Érdekes kérdés! De nekem a szakterületem az AI automatizáció és üzleti megoldások. Ebben tudok igazán segíteni!"
+- NE mondj olyat, amit nem tudsz biztosan — inkább ajánld a lookup_info eszközt
+
+PROAKTIVITÁS (nagyon fontos a demo-hoz!):
+- Ha válaszoltál egy kérdésre, ajánlj fel egy logikus következő lépést:
+  - Árazás vagy szolgáltatás info után → "Szeretnéd, ha foglalnék egy ingyenes konzultációt?"
+  - Információ megosztás után → "Küldjem el emailben is ezt az összefoglalót?"
+  - Időpont foglalás után → "Küldjek erről visszaigazoló emailt is?"
+  - Időjárás után → "Más kérdésed is van, vagy segíthetek időpont foglalásban?"
+- EZ TESZI ÉLŐSZERŰVÉ a beszélgetést — mindig ajánlj következő lépést!
+
 CTA: "Töltsd ki az ajánlatkérő űrlapot a tink-éj-áj pont há ú weboldalon!" vagy "Írj a helló kukac tink-éj-áj pont há ú címre!"
 Ne találj ki adatot — ha nem tudod, mondd el őszintén!
 """
@@ -183,7 +195,11 @@ class ThinkAIAgent(Agent):
 
     async def on_enter(self):
         """Greet the user when they connect."""
-        self.session.say("Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?")
+        self.session.say(
+            "Szia! A Tink-éj-áj virtuális asszisztense vagyok. "
+            "Kérdezz a szolgáltatásainkról, foglalj időpontot, "
+            "vagy akár emailt is küldhetek helyetted. Miben segíthetek?"
+        )
 
     async def llm_node(self, chat_ctx, tools, model_settings):
         """Override LLM node: context window + error fallback."""
@@ -196,7 +212,7 @@ class ThinkAIAgent(Agent):
             return stream
         except Exception as e:
             logger.error(f"LLM error: {e}")
-            return "Elnézést, technikai hiba történt. Kérlek, próbáld újra!"
+            return "Hoppá, most egy pillanatra elakadtam. Kérlek, próbáld újra!"
 
     async def tts_node(self, text, model_settings):
         """Override TTS node: detect [LANG:XX] tags, switch BEFORE creating stream.
