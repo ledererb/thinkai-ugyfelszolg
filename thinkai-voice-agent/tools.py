@@ -183,6 +183,31 @@ async def book_meeting(
         end_dt = start_dt + timedelta(minutes=duration_minutes)
 
         events = _read_json(CALENDAR_FILE)
+
+        # ── Conflict detection ────────────────────────────────────────
+        for ev in events:
+            try:
+                ev_start = datetime.fromisoformat(ev["start"])
+                ev_end = ev_start + timedelta(minutes=ev.get("duration_minutes", 30))
+                # Overlap: new starts before existing ends AND new ends after existing starts
+                if start_dt < ev_end and end_dt > ev_start:
+                    ev_title = ev.get("title", "Névtelen esemény")
+                    ev_time = ev_start.strftime("%H:%M")
+                    # Find next available slot on the same day
+                    suggestion = _find_next_slot(events, date, duration_minutes, start_dt)
+                    msg = (
+                        f"Ütközés! {ev_time}-kor már van egy foglalás: \"{ev_title}\" "
+                        f"({ev.get('duration_minutes', 30)} perc)."
+                    )
+                    if suggestion:
+                        msg += f" Javaslat: {suggestion} lenne szabad. Foglaljam erre?"
+                    else:
+                        msg += " Ezen a napon nincs több szabad hely. Válassz egy másik napot!"
+                    return msg
+            except Exception:
+                continue
+
+        # ── No conflict — book it ─────────────────────────────────────
         new_id = max((e.get("id", 0) for e in events), default=0) + 1
         events.append({
             "id": new_id,
@@ -202,6 +227,34 @@ async def book_meeting(
     except Exception as e:
         logger.error(f"Booking error: {e}")
         return f"Hiba a találkozó foglalásakor: {str(e)}"
+
+
+def _find_next_slot(events: list, date: str, duration: int, after: datetime) -> str | None:
+    """Find the next available slot on the given date after the specified time."""
+    day_events = []
+    for ev in events:
+        try:
+            ev_start = datetime.fromisoformat(ev["start"])
+            if ev_start.strftime("%Y-%m-%d") == date:
+                ev_end = ev_start + timedelta(minutes=ev.get("duration_minutes", 30))
+                day_events.append((ev_start, ev_end))
+        except Exception:
+            continue
+
+    day_events.sort(key=lambda x: x[0])
+
+    # Try slots from after_time to 18:00 in 30-min increments
+    candidate = after.replace(second=0)
+    end_of_day = after.replace(hour=18, minute=0, second=0)
+
+    while candidate + timedelta(minutes=duration) <= end_of_day:
+        candidate_end = candidate + timedelta(minutes=duration)
+        conflict = any(candidate < ev_end and candidate_end > ev_start for ev_start, ev_end in day_events)
+        if not conflict:
+            return candidate.strftime("%H:%M")
+        candidate += timedelta(minutes=30)
+
+    return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
