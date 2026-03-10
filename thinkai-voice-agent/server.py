@@ -96,8 +96,7 @@ KÉPESSÉGEID:
 4. Időpont módosítás — meglévő találkozó megváltoztatása
 5. Időpont törlés — találkozó lemondása
 6. Időjárás lekérdezés — bármely város aktuális időjárása
-7. Feladat rögzítés — jegyzet vagy teendő felvétele
-8. Tudásbázis keresés — részletes céges információk a lookup_info eszközzel: árazás, pályázat, módszertan, szektorok, sikertörténetek, AI ügyfélszolgálat stb.
+7. Tudásbázis keresés — részletes céges információk a lookup_info eszközzel: árazás, pályázat, módszertan, szektorok, sikertörténetek, AI ügyfélszolgálat stb.
 
 ESZKÖZHASZNÁLAT SZABÁLYAI (kritikus!):
 - Soha ne hívj meg egy eszközt, amíg minden szükséges információt meg nem kaptál a felhasználótól!

@@ -513,43 +513,7 @@ async def get_weather(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 5. CREATE TASK/NOTE (local JSON store)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@function_tool(description="Feladat/teendő/jegyzet rögzítése. Használd, ha a felhasználó jegyezni akar valamit, vagy feladatot szeretne rögzíteni.")
-async def create_task(
-    ctx: RunContext,
-    task: Annotated[str, "A feladat szövege"],
-    priority: Annotated[str, "Prioritás: low/normal/high"] = "normal",
-    due_date: Annotated[str, "Határidő YYYY-MM-DD formátumban (opcionális)"] = "",
-) -> str:
-    """Feladat rögzítése."""
-    logger.info(f"Creating task: {task}")
-
-    try:
-        tasks = _read_json(TASKS_FILE)
-        new_task = {
-            "id": len(tasks) + 1,
-            "text": task,
-            "priority": priority,
-            "due_date": due_date,
-            "created_at": datetime.utcnow().isoformat(),
-            "completed": False,
-        }
-        tasks.append(new_task)
-        _write_json(TASKS_FILE, tasks)
-
-        result = f'Feladat rögzítve: "{task}"'
-        if due_date:
-            result += f" — határidő: {due_date}"
-        return result + "."
-    except Exception as e:
-        logger.error(f"Task error: {e}")
-        return f"Hiba a feladat mentésekor: {str(e)}"
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 6. KNOWLEDGE LOOKUP (structured ThinkAI info)
+# 5. KNOWLEDGE LOOKUP (structured ThinkAI info)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ── Knowledge base path ──────────────────────────────────────────────────────
@@ -738,6 +702,5 @@ ALL_TOOLS = [
     modify_meeting,
     delete_meeting,
     get_weather,
-    create_task,
     lookup_info,
 ]
