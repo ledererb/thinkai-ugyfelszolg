@@ -8,6 +8,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Annotated
+import re
 
 import httpx
 from livekit.agents import function_tool, RunContext
@@ -18,6 +19,88 @@ THIS_DIR = Path(__file__).resolve().parent
 TASKS_FILE = THIS_DIR / "tasks.json"
 CALENDAR_FILE = THIS_DIR / "calendar.json"
 EMAILS_FILE = THIS_DIR / "emails.json"
+
+
+# ── Hungarian date/time parsing ─────────────────────────────────────────────
+_HU_MONTHS = {
+    "január": 1, "jan": 1,
+    "február": 2, "feb": 2,
+    "március": 3, "márc": 3, "mar": 3,
+    "április": 4, "ápr": 4,
+    "május": 5, "máj": 5,
+    "június": 6, "jún": 6,
+    "július": 7, "júl": 7,
+    "augusztus": 8, "aug": 8,
+    "szeptember": 9, "szept": 9, "szep": 9,
+    "október": 10, "okt": 10,
+    "november": 11, "nov": 11,
+    "december": 12, "dec": 12,
+}
+
+
+def _parse_hungarian_date(raw: str) -> str:
+    """Parse various date formats into YYYY-MM-DD.
+
+    Accepts: '2026-03-11', 'március 11', 'márc 11', '03/11', '03.11',
+             'március 11-én', '11. március', etc.
+    """
+    raw = raw.strip().rstrip(".")
+
+    # Already ISO format
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", raw):
+        return raw
+
+    year = datetime.utcnow().year
+
+    # "március 11" / "márc 11" / "március 11-én" / "március 11."
+    for name, month_num in _HU_MONTHS.items():
+        if name in raw.lower():
+            day_match = re.search(r"(\d{1,2})", raw)
+            if day_match:
+                day = int(day_match.group(1))
+                return f"{year}-{month_num:02d}-{day:02d}"
+
+    # "03/11" or "03.11" or "3/11"
+    m = re.match(r"^(\d{1,2})[/\.](\d{1,2})$", raw)
+    if m:
+        return f"{year}-{int(m.group(1)):02d}-{int(m.group(2)):02d}"
+
+    # "2026.03.11" or "2026/03/11"
+    m = re.match(r"^(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})$", raw)
+    if m:
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+
+    # Last resort: try fromisoformat
+    try:
+        return datetime.fromisoformat(raw).strftime("%Y-%m-%d")
+    except Exception:
+        pass
+
+    raise ValueError(f"Nem értelmezhető dátum: '{raw}'")
+
+
+def _parse_hungarian_time(raw: str) -> str:
+    """Parse various time formats into HH:MM.
+
+    Accepts: '10:00', '10 óra', '10h', 'délelőtt 10', '14:30', '10'
+    """
+    raw = raw.strip().lower()
+
+    # Already HH:MM
+    m = re.match(r"^(\d{1,2}):(\d{2})$", raw)
+    if m:
+        return f"{int(m.group(1)):02d}:{m.group(2)}"
+
+    # "10 óra" / "10h" / "délelőtt 10" / "délután 3"
+    m = re.search(r"(\d{1,2})", raw)
+    if m:
+        hour = int(m.group(1))
+        if "délután" in raw or "du" in raw:
+            if hour < 12:
+                hour += 12
+        return f"{hour:02d}:00"
+
+    raise ValueError(f"Nem értelmezhető időpont: '{raw}'")
 
 
 # ── JSON helpers ─────────────────────────────────────────────────────────────
@@ -170,8 +253,8 @@ async def check_calendar(
 async def book_meeting(
     ctx: RunContext,
     title: Annotated[str, "A meeting címe/témája"],
-    date: Annotated[str, "A meeting dátuma YYYY-MM-DD formátumban"],
-    time: Annotated[str, "A meeting kezdési időpontja HH:MM formátumban (pl. 10:00)"],
+    date: Annotated[str, "A meeting dátuma (pl. 2026-03-11, március 11, márc 11)"],
+    time: Annotated[str, "A meeting kezdési időpontja (pl. 10:00, 10 óra, 14:30)"],
     duration_minutes: Annotated[int, "A meeting hossza percben"] = 30,
     attendee_email: Annotated[str, "A meghívott email címe (opcionális)"] = "",
 ) -> str:
@@ -179,7 +262,9 @@ async def book_meeting(
     logger.info(f"Booking meeting: {title} on {date} at {time}")
 
     try:
-        start_dt = datetime.fromisoformat(f"{date}T{time}:00")
+        parsed_date = _parse_hungarian_date(date)
+        parsed_time = _parse_hungarian_time(time)
+        start_dt = datetime.fromisoformat(f"{parsed_date}T{parsed_time}:00")
         end_dt = start_dt + timedelta(minutes=duration_minutes)
 
         events = _read_json(CALENDAR_FILE)
