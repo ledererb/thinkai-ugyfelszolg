@@ -104,6 +104,9 @@ ESZKÖZHASZNÁLAT SZABÁLYAI (KRITIKUS!):
 - EMAIL: Mielőtt elküldenéd, MINDENKÉPPEN kérdezd meg: 1) Kinek? 2) Milyen email címre? 3) Mi legyen a TÁRGYA? 4) Mi legyen a TARTALMA?
 - NAPTÁR: Kérdezd meg: 1) Mikor? 2) Hány órakor? 3) Milyen címmel? 4) Mennyi ideig?
 - NE siess — ha hiányzik bármilyen adat, KÉRDEZD MEG először!
+- MIELŐTT bármilyen eszközt meghívnál, FOGLALD ÖSSZE amit tenni fogsz és kérdezd meg: "Jól értettem? Mehet?"
+- CSAK "igen", "ja", "mehet", "OK", "yes" válasz után hívd meg az eszközt!
+- Ha a felhasználó bármit módosít, NE hívd meg az eszközt — frissítsd az adatokat és kérdezz újra!
 - Ha egy eszköz hibát ad, mondd el röviden és kérj elnézést.
 
 KIEJTÉSI SZABÁLYOK (nagyon fontos — a TTS motornak írsz!):
@@ -183,11 +186,22 @@ class ThinkAIAgent(Agent):
         self.session.say("Szia! A ThinkAI asszisztense vagyok. Miben segíthetek?")
 
     async def llm_node(self, chat_ctx, tools, model_settings):
-        """Override LLM node to intercept language tags and switch STT/TTS."""
-        stream = Agent.default.llm_node(self, chat_ctx, tools, model_settings)
+        """Override LLM node: context window, language detection, error fallback."""
+        # ── Context window: keep system + last N messages ─────────────
+        MAX_CONTEXT_MESSAGES = 20
+        if len(chat_ctx.messages) > MAX_CONTEXT_MESSAGES + 1:
+            chat_ctx.messages = (
+                [chat_ctx.messages[0]] + chat_ctx.messages[-MAX_CONTEXT_MESSAGES:]
+            )
 
-        if asyncio.iscoroutine(stream):
-            stream = await stream
+        # ── Call LLM with error fallback ──────────────────────────────
+        try:
+            stream = Agent.default.llm_node(self, chat_ctx, tools, model_settings)
+            if asyncio.iscoroutine(stream):
+                stream = await stream
+        except Exception as e:
+            logger.error(f"LLM error: {e}")
+            return "Elnézést, technikai hiba történt. Kérlek, próbáld újra!"
 
         # If it's a plain string, check for tags and return
         if isinstance(stream, str):
@@ -201,51 +215,53 @@ class ThinkAIAgent(Agent):
         async def _filter_stream():
             buffer = ""
             tag_checked = False
-            async for chunk in stream:
-                if isinstance(chunk, str):
-                    if not tag_checked:
-                        buffer += chunk
-                        # Check for tag once we have enough text
-                        if len(buffer) >= 10 or not buffer.startswith("["):
-                            match = _LANG_TAG_RE.search(buffer)
-                            if match:
-                                _switch_language(
-                                    match.group(1).lower(),
-                                    self.session,
-                                    self._current_lang,
-                                )
-                                buffer = _LANG_TAG_RE.sub("", buffer).lstrip()
-                            tag_checked = True
-                            if buffer:
-                                yield buffer
-                            buffer = ""
+            try:
+                async for chunk in stream:
+                    if isinstance(chunk, str):
+                        if not tag_checked:
+                            buffer += chunk
+                            if len(buffer) >= 10 or not buffer.startswith("["):
+                                match = _LANG_TAG_RE.search(buffer)
+                                if match:
+                                    _switch_language(
+                                        match.group(1).lower(),
+                                        self.session,
+                                        self._current_lang,
+                                    )
+                                    buffer = _LANG_TAG_RE.sub("", buffer).lstrip()
+                                tag_checked = True
+                                if buffer:
+                                    yield buffer
+                                buffer = ""
+                        else:
+                            yield chunk
                     else:
+                        if not tag_checked and hasattr(chunk, "text") and chunk.text:
+                            buffer += chunk.text
+                            if len(buffer) >= 10 or not buffer.startswith("["):
+                                match = _LANG_TAG_RE.search(buffer)
+                                if match:
+                                    _switch_language(
+                                        match.group(1).lower(),
+                                        self.session,
+                                        self._current_lang,
+                                    )
+                                tag_checked = True
                         yield chunk
-                else:
-                    # ChatChunk — pass through, but check text content
-                    if not tag_checked and hasattr(chunk, "text") and chunk.text:
-                        buffer += chunk.text
-                        if len(buffer) >= 10 or not buffer.startswith("["):
-                            match = _LANG_TAG_RE.search(buffer)
-                            if match:
-                                _switch_language(
-                                    match.group(1).lower(),
-                                    self.session,
-                                    self._current_lang,
-                                )
-                            tag_checked = True
-                    yield chunk
 
-            # Flush any remaining buffer
-            if buffer and not tag_checked:
-                match = _LANG_TAG_RE.search(buffer)
-                if match:
-                    _switch_language(
-                        match.group(1).lower(), self.session, self._current_lang
-                    )
-                    buffer = _LANG_TAG_RE.sub("", buffer).lstrip()
-                if buffer:
-                    yield buffer
+                # Flush remaining buffer
+                if buffer and not tag_checked:
+                    match = _LANG_TAG_RE.search(buffer)
+                    if match:
+                        _switch_language(
+                            match.group(1).lower(), self.session, self._current_lang
+                        )
+                        buffer = _LANG_TAG_RE.sub("", buffer).lstrip()
+                    if buffer:
+                        yield buffer
+            except Exception as e:
+                logger.error(f"LLM stream error: {e}")
+                yield "Elnézést, technikai hiba történt. Kérlek, próbáld újra!"
 
         return _filter_stream()
 
@@ -263,6 +279,7 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt=google.STT(
             languages=["hu-HU", "en-US"],
+            min_confidence_threshold=0.75,
             keywords=[
                 # ── Brand names (highest boost) ──────────────────────────
                 ("ThinkAI", 20.0),
@@ -325,8 +342,8 @@ async def entrypoint(ctx: JobContext):
             emotion=["positivity:high", "curiosity"],
         ),
         vad=silero.VAD.load(
-            activation_threshold=0.75,
-            min_speech_duration=0.25,
+            activation_threshold=0.85,
+            min_speech_duration=0.4,
             min_silence_duration=0.6,
         ),
     )
