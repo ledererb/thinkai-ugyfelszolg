@@ -726,8 +726,17 @@
         function addTranscript(role, text) {
             if (!text || !text.trim()) return;
             // Strip [LANG:XX] tags from display
-            text = text.replace(/\[LANG:(HU|EN)\]/g, '').trim();
+            text = text.replace(/\[LANG:(HU|EN)\]/gi, '').trim();
             if (!text) return;
+            // Clean up phonetic spellings for display
+            text = text.replace(/[Tt]ink-éj-áj/g, 'ThinkAI');
+            text = text.replace(/tink-éj-áj/g, 'ThinkAI');
+            text = text.replace(/éj-áj/g, 'AI');
+            text = text.replace(/Ízí|ízí/g, 'EAISY');
+            text = text.replace(/szé-er-em/g, 'CRM');
+            text = text.replace(/é-er-pé/g, 'ERP');
+            text = text.replace(/ThinkAI pont há ú/gi, 'thinkai.hu');
+            text = text.replace(/helló kukac ThinkAI pont há ú/gi, 'hello@thinkai.hu');
             const div = document.createElement('div');
             div.className = role;
             div.textContent = (role === 'user' ? '🗣️ ' : '🤖 ') + text;
