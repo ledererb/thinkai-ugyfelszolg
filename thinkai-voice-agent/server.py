@@ -187,12 +187,8 @@ class ThinkAIAgent(Agent):
 
     async def llm_node(self, chat_ctx, tools, model_settings):
         """Override LLM node: context window, language detection, error fallback."""
-        # ── Context window: keep system + last N messages ─────────────
-        MAX_CONTEXT_MESSAGES = 20
-        if len(chat_ctx.messages) > MAX_CONTEXT_MESSAGES + 1:
-            chat_ctx.messages = (
-                [chat_ctx.messages[0]] + chat_ctx.messages[-MAX_CONTEXT_MESSAGES:]
-            )
+        # ── Context window: keep system + last N items ─────────────
+        chat_ctx.truncate(max_items=20)
 
         # ── Call LLM with error fallback ──────────────────────────────
         try:
