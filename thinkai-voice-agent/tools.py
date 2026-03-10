@@ -463,35 +463,78 @@ def _load_knowledge() -> dict:
     return {}
 
 
-@function_tool(description="ThinkAI belső tudásbázis lekérdezése. Használd, ha a felhasználó részletes információt kér az árazásról, auditról, technológiáról, csapatról, EAISY-ról, garanciáról, szektorokról, sikertörténetekről vagy a munkafolyamatokról.")
+_TOPIC_ALIASES = {
+    # Hungarian terms → knowledge.json key
+    "árazás": "pricing", "árak": "pricing", "ár": "pricing", "mennyibe": "pricing",
+    "audit": "audit", "átvilágítás": "audit",
+    "technológia": "tech_stack", "tech": "tech_stack", "eszközök": "tech_stack",
+    "csapat": "team", "csapattagok": "team", "munkatársak": "team", "kik vagytok": "team",
+    "eaisy": "eaisy",
+    "garancia": "guarantee", "pénzvisszafizetés": "guarantee",
+    "pillér": "pillerek", "pillérek": "pillerek", "szolgáltatások": "pillerek",
+    "hogyan dolgoztok": "hogyan_dolgozunk", "módszer": "modszerunk", "módszertan": "modszerunk", "folyamat": "hogyan_dolgozunk",
+    "szektor": "szektorok", "szektorok": "szektorok", "iparág": "szektorok",
+    "sikertörténet": "sikertortenetek", "referencia": "sikertortenetek", "projekt": "sikertortenetek",
+    "kapcsolat": "kapcsolat", "elérhetőség": "kapcsolat", "email cím": "kapcsolat",
+    "pénzügy": "penzugy", "számvitel": "penzugy",
+    "webshop": "ecommerce", "e-kereskedelem": "ecommerce", "ecommerce": "ecommerce",
+    "marketing": "marketing", "sales": "marketing", "értékesítés": "marketing",
+    "listamester": "listamester",
+    "hungarorisk": "hungarorisk", "biztosítás": "hungarorisk",
+    "könyvelés": "konyvelesai", "könyvelés ai": "konyvelesai",
+    "pályázat": "palyazat", "dimop": "palyazat", "támogatás": "palyazat",
+    "pályázati feltételek": "palyazat_feltetelek",
+    "ügyfélszolgálat": "ai_ugyfelszolgalat", "ai ügyfélszolgálat": "ai_ugyfelszolgalat",
+    "rólunk": "rolunk", "cég": "rolunk", "bemutatkozás": "rolunk",
+}
+
+
+@function_tool(description="ThinkAI belső tudásbázis lekérdezése. Használd, ha a felhasználó bármilyen részletes információt kér a cégről, árazásról, csapatról, szolgáltatásokról, pályázatokról, sikertörténetekről vagy bármi másról. Bármilyen témát megadhatsz szabadon, a rendszer megtalálja a megfelelő információt.")
 async def lookup_info(
     ctx: RunContext,
-    topic: Annotated[str, "A keresett téma: pricing, audit, tech_stack, team, eaisy, guarantee, pillerek, hogyan_dolgozunk, szektorok, sikertortenetek, kapcsolat, penzugy, ecommerce, marketing, listamester, hungarorisk, konyvelesai"],
+    topic: Annotated[str, "A keresett téma szabadon megadva, pl: 'csapat', 'árazás', 'pályázat', 'garancia', 'ügyfélszolgálat', 'sikertörténetek'"],
 ) -> str:
     """ThinkAI tudásbázis lekérdezése."""
     kb = _load_knowledge()
     topic_lower = topic.lower().strip()
     logger.info(f"Knowledge lookup: {topic_lower}")
 
-    # Exact match
+    # 1. Exact match in knowledge base
     if topic_lower in kb:
         return kb[topic_lower]
 
-    # Fuzzy match on keys
+    # 2. Match via Hungarian aliases
+    for alias, key in _TOPIC_ALIASES.items():
+        if alias in topic_lower or topic_lower in alias:
+            if key in kb:
+                return kb[key]
+
+    # 3. Fuzzy match on knowledge base keys
     for key, value in kb.items():
         if key in topic_lower or topic_lower in key:
             return value
 
-    # Fuzzy match on values
+    # 4. Full-text search in values
     for key, value in kb.items():
         if topic_lower in value.lower():
             return value
 
-    topics = ", ".join(kb.keys())
+    # 5. Multi-word: try each word separately
+    words = topic_lower.split()
+    for word in words:
+        if len(word) < 3:
+            continue
+        for alias, key in _TOPIC_ALIASES.items():
+            if word in alias or alias in word:
+                if key in kb:
+                    return kb[key]
+        for key, value in kb.items():
+            if word in key or word in value.lower():
+                return value
+
     return (
-        f"Erről a témáról nincs részletes információm. "
-        f"A következő témákban tudok segíteni: {topics}. "
-        f"Részletesebb információért keresd a csapatot a hello@thinkai.hu címen!"
+        "Erről a témáról nincs részletes információm a tudásbázisban. "
+        "Részletesebb információért keresd a csapatot a hello@thinkai.hu címen!"
     )
 
 
