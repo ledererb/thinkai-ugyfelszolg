@@ -198,11 +198,56 @@ class ThinkAIAgent(Agent):
             logger.error(f"LLM error: {e}")
             return "Elnézést, technikai hiba történt. Kérlek, próbáld újra!"
 
-    def tts_node(self, text, model_settings):
-        """Override TTS node: detect [LANG:XX] tags, switch language, strip tags."""
-        async def _filtered_text():
-            async for chunk in text:
-                # Check for language tag
+    async def tts_node(self, text, model_settings):
+        """Override TTS node: detect [LANG:XX] tags, switch BEFORE creating stream.
+
+        Critical: Cartesia copies tts._opts at stream creation (`replace(tts._opts)`).
+        Agent.default.tts_node creates the stream immediately, so update_options()
+        during text streaming has no effect. We must:
+        1. Buffer initial text chunks
+        2. Detect and strip [LANG:XX] tag
+        3. Call update_options() to switch language
+        4. THEN create the TTS stream with the correct language
+        """
+        activity = self._get_activity_or_raise()
+        assert activity.tts is not None
+
+        # Step 1: Buffer first chunks to detect language tag
+        first_chunks = []
+        remaining_iter = text.__aiter__()
+        detected = False
+
+        # Collect chunks until we find a tag or enough text
+        async for chunk in remaining_iter:
+            first_chunks.append(chunk)
+            combined = "".join(first_chunks)
+
+            match = _LANG_TAG_RE.search(combined)
+            if match:
+                # Found tag — switch language
+                _switch_language(
+                    match.group(1).lower(),
+                    self.session,
+                    self._current_lang,
+                )
+                # Strip tag from combined text
+                combined = _LANG_TAG_RE.sub("", combined).lstrip()
+                first_chunks = [combined] if combined else []
+                detected = True
+                break
+            elif len(combined) >= 12 or (combined and not combined.lstrip().startswith("[")):
+                # No tag — stop buffering
+                break
+
+        # Step 2: Create async generator with buffered + remaining text
+        async def _cleaned_text():
+            # Yield buffered chunks first
+            for chunk in first_chunks:
+                if chunk:
+                    yield chunk
+
+            # Then yield remaining chunks, stripping any late tags
+            async for chunk in remaining_iter:
                 match = _LANG_TAG_RE.search(chunk)
                 if match:
                     _switch_language(
@@ -211,11 +256,12 @@ class ThinkAIAgent(Agent):
                         self._current_lang,
                     )
                     chunk = _LANG_TAG_RE.sub("", chunk).lstrip()
-
-                if chunk:  # Don't yield empty strings
+                if chunk:
                     yield chunk
 
-        return Agent.default.tts_node(self, _filtered_text(), model_settings)
+        # Step 3: NOW create TTS stream (language is already set correctly)
+        async for frame in Agent.default.tts_node(self, _cleaned_text(), model_settings):
+            yield frame
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
