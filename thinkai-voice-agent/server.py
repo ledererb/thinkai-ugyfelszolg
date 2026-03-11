@@ -1,12 +1,11 @@
 """
 ThinkAI Voice Agent — LiveKit Agents Server
 Real-time voice assistant powered by LiveKit + Google STT + Gemini 2.5 Flash + Cartesia TTS
-Dynamic HU/EN language switching via LLM detection
+Hungarian-only with ThinkAI brand pronunciation handling
 """
 
 import asyncio
 import os
-import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -61,17 +60,6 @@ SZEMÉLYISÉG ÉS STÍLUS:
 - Soha ne kezdj két egymást követő választ ugyanazzal a szóval
 - Ha problémát hallasz, először mutass empátiát, aztán oldd meg
 
-NYELV:
-- Alapértelmezett nyelv: magyar
-- Ha angolul szólalnak meg, válaszolj angolul
-- Kövesd a felhasználó nyelvét: ha ő vált, te is válts
-- Ne keverd a nyelveket egy válaszon belül
-
-NYELVVÁLTÁS JELZÉS (kritikus!):
-- Ha a felhasználó angolra vált, kezdd a válaszod ezzel: [LANG:EN]
-- Ha a felhasználó visszavált magyarra, kezdd a válaszod ezzel: [LANG:HU]
-- Ha nincs nyelvváltás, ne használd a jelzést — csak váltáskor!
-- A [LANG:XX] jelzést a felhasználó nem fogja hallani, csak belső használatra van
 
 A THINKAIRÓL (röviden):
 - ThinkAI Kft. — magyar AI automatizációs cég, thinkai.hu, hello@thinkai.hu
@@ -148,15 +136,9 @@ def _get_system_prompt() -> str:
     return SYSTEM_PROMPT_TEMPLATE.format(today=today)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# LANGUAGE DETECTION — switch STT/TTS dynamically
-# ═══════════════════════════════════════════════════════════════════════════════
-
-_LANG_TAG_RE = re.compile(r"\[LANG:(HU|EN)\]")
-
 # ── TTS pronunciation replacements (applied before Cartesia gets the text) ────
 # Keys are case-sensitive. The LLM writes natural text; this map ensures
-# Cartesia pronounces foreign/brand words correctly in Hungarian mode.
+# Cartesia pronounces foreign/brand words correctly in Hungarian.
 _TTS_REPLACEMENTS = {
     # Brand names
     "ThinkAI": "Tink-éj-áj",
@@ -183,35 +165,12 @@ def _apply_tts_replacements(text: str) -> str:
     return text
 
 
-def _switch_language(new_lang: str, session: AgentSession, current_lang: list):
-    """Switch STT and TTS language if changed."""
-    if new_lang == current_lang[0]:
-        return
-
-    current_lang[0] = new_lang
-    logger.info(f"🌐 Language switch → {new_lang.upper()}")
-
-    try:
-        if new_lang == "en":
-            session.stt.update_options(languages=["en-US", "hu-HU"])
-        else:
-            session.stt.update_options(languages=["hu-HU", "en-US"])
-    except Exception as e:
-        logger.warning(f"STT language switch failed: {e}")
-
-    try:
-        session.tts.update_options(language=new_lang)
-    except Exception as e:
-        logger.warning(f"TTS language switch failed: {e}")
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # AGENT CLASS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ThinkAIAgent(Agent):
     def __init__(self):
-        self._current_lang = ["hu"]  # mutable for closure
         super().__init__(
             instructions=_get_system_prompt(),
             tools=ALL_TOOLS,
@@ -241,71 +200,13 @@ class ThinkAIAgent(Agent):
             return "Hoppá, most egy pillanatra elakadtam. Kérlek, próbáld újra!"
 
     async def tts_node(self, text, model_settings):
-        """Override TTS node: detect [LANG:XX] tags, switch BEFORE creating stream.
-
-        Critical: Cartesia copies tts._opts at stream creation (`replace(tts._opts)`).
-        Agent.default.tts_node creates the stream immediately, so update_options()
-        during text streaming has no effect. We must:
-        1. Buffer initial text chunks
-        2. Detect and strip [LANG:XX] tag
-        3. Call update_options() to switch language
-        4. THEN create the TTS stream with the correct language
-        """
-        activity = self._get_activity_or_raise()
-        assert activity.tts is not None
-
-        # Step 1: Buffer first chunks to detect language tag
-        first_chunks = []
-        remaining_iter = text.__aiter__()
-        detected = False
-
-        # Collect chunks until we find a tag or enough text
-        async for chunk in remaining_iter:
-            first_chunks.append(chunk)
-            combined = "".join(first_chunks)
-
-            match = _LANG_TAG_RE.search(combined)
-            if match:
-                # Found tag — switch language
-                _switch_language(
-                    match.group(1).lower(),
-                    self.session,
-                    self._current_lang,
-                )
-                # Strip tag from combined text
-                combined = _LANG_TAG_RE.sub("", combined).lstrip()
-                first_chunks = [combined] if combined else []
-                detected = True
-                break
-            elif len(combined) >= 12 or (combined and not combined.lstrip().startswith("[")):
-                # No tag — stop buffering
-                break
-
-        # Step 2: Create async generator with buffered + remaining text
+        """Override TTS node: apply brand pronunciation replacements."""
         async def _cleaned_text():
-            # Yield buffered chunks first (with pronunciation fixes)
-            for chunk in first_chunks:
+            async for chunk in text:
                 if chunk:
-                    if self._current_lang[0] == "hu":
-                        chunk = _apply_tts_replacements(chunk)
+                    chunk = _apply_tts_replacements(chunk)
                     yield chunk
 
-            # Then yield remaining chunks, stripping any late tags
-            async for chunk in remaining_iter:
-                match = _LANG_TAG_RE.search(chunk)
-                if match:
-                    _switch_language(
-                        match.group(1).lower(),
-                        self.session,
-                        self._current_lang,
-                    )
-                    chunk = _LANG_TAG_RE.sub("", chunk).lstrip()
-                if chunk:
-                    if self._current_lang[0] == "hu":
-                        chunk = _apply_tts_replacements(chunk)
-                    yield chunk
-
-        # Step 3: NOW create TTS stream (language is already set correctly)
         async for frame in Agent.default.tts_node(self, _cleaned_text(), model_settings):
             yield frame
 
@@ -322,7 +223,7 @@ async def entrypoint(ctx: JobContext):
 
     session = AgentSession(
         stt=google.STT(
-            languages=["hu-HU", "en-US"],
+            languages=["hu-HU"],
             min_confidence_threshold=0.75,
             keywords=[
                 # ── Brand names (highest boost) ──────────────────────────
