@@ -12,10 +12,6 @@ cd "$SCRIPT_DIR"
 MODE="${1:-start}"
 
 echo "🚀 Starting ThinkAI Voice Agent..."
-
-# Install optional dependencies that may not be in the base image
-pip install -q livekit-plugins-noise-cancellation 2>/dev/null || echo "⚠️  BVC noise cancellation not available"
-
 echo "   Agent worker: python server.py $MODE"
 echo "   Web server:   python web_server.py (port ${PORT:-8000})"
 
