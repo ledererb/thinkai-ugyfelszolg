@@ -27,7 +27,16 @@ from livekit.agents import (
     cli,
 )
 
-from livekit.plugins import cartesia, google, noise_cancellation, silero
+from livekit.plugins import cartesia, google, silero
+
+# Optional: server-side noise cancellation (requires livekit-plugins-noise-cancellation)
+try:
+    from livekit.plugins import noise_cancellation
+    _HAS_BVC = True
+    logger.info("BVC noise cancellation available")
+except ImportError:
+    _HAS_BVC = False
+    logger.warning("BVC noise cancellation not available — install livekit-plugins-noise-cancellation")
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
@@ -363,15 +372,16 @@ async def entrypoint(ctx: JobContext):
         ),
     )
 
-    await session.start(
-        agent=ThinkAIAgent(),
-        room=ctx.room,
-        # Server-side noise cancellation — filters breathing, background noise,
-        # keyboard sounds before they reach VAD (requires LiveKit Cloud)
-        room_input_options=RoomInputOptions(
+    # Build start options
+    start_kwargs = dict(agent=ThinkAIAgent(), room=ctx.room)
+    # Server-side noise cancellation — filters breathing, background noise,
+    # keyboard sounds before they reach VAD (requires LiveKit Cloud)
+    if _HAS_BVC:
+        start_kwargs["room_input_options"] = RoomInputOptions(
             noise_cancellation=noise_cancellation.BVC(),
-        ),
-    )
+        )
+
+    await session.start(**start_kwargs)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
