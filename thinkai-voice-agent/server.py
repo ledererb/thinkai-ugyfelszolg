@@ -361,16 +361,16 @@ async def entrypoint(ctx: JobContext):
             min_speech_duration=0.5,
             min_silence_duration=0.8,
         ),
-        # Server-side noise cancellation — filters breathing, background noise,
-        # keyboard sounds before they reach VAD (requires LiveKit Cloud)
-        input=RoomInputOptions(
-            noise_cancellation=noise_cancellation.BVC(),
-        ),
     )
 
     await session.start(
         agent=ThinkAIAgent(),
         room=ctx.room,
+        # Server-side noise cancellation — filters breathing, background noise,
+        # keyboard sounds before they reach VAD (requires LiveKit Cloud)
+        room_input_options=RoomInputOptions(
+            noise_cancellation=noise_cancellation.BVC(),
+        ),
     )
 
 
