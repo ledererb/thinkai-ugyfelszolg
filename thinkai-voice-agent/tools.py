@@ -614,8 +614,8 @@ async def modify_meeting(
     ctx: RunContext,
     event_title: Annotated[str, "A módosítandó esemény címe (vagy egy része, ami azonosítja)"],
     new_title: Annotated[str, "Az új cím (ha változik, különben hagyd üresen)"] = "",
-    new_date: Annotated[str, "Az új dátum YYYY-MM-DD formátumban (ha változik)"] = "",
-    new_time: Annotated[str, "Az új időpont HH:MM formátumban (ha változik)"] = "",
+    new_date: Annotated[str, "Az új dátum (pl. 2026-03-11, március 12, márc 12)"] = "",
+    new_time: Annotated[str, "Az új időpont (pl. 10:00, 10 óra, 14:30)"] = "",
     new_duration_minutes: Annotated[int, "Az új időtartam percben (ha változik)"] = 0,
 ) -> str:
     """Naptári esemény módosítása."""
@@ -641,8 +641,8 @@ async def modify_meeting(
             found["title"] = new_title
         if new_date or new_time:
             old_dt = datetime.fromisoformat(found["start"])
-            d = new_date or old_dt.strftime("%Y-%m-%d")
-            t = new_time or old_dt.strftime("%H:%M")
+            d = _parse_hungarian_date(new_date) if new_date else old_dt.strftime("%Y-%m-%d")
+            t = _parse_hungarian_time(new_time) if new_time else old_dt.strftime("%H:%M")
             new_start = datetime.fromisoformat(f"{d}T{t}:00")
             dur = new_duration_minutes or found.get("duration_minutes", 30)
             found["start"] = new_start.isoformat()
