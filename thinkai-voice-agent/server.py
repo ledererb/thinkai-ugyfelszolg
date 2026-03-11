@@ -22,11 +22,12 @@ from livekit.agents import (
     Agent,
     AgentSession,
     JobContext,
+    RoomInputOptions,
     WorkerOptions,
     cli,
 )
 
-from livekit.plugins import cartesia, google, silero
+from livekit.plugins import cartesia, google, noise_cancellation, silero
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
@@ -359,6 +360,11 @@ async def entrypoint(ctx: JobContext):
             activation_threshold=0.92,
             min_speech_duration=0.5,
             min_silence_duration=0.8,
+        ),
+        # Server-side noise cancellation — filters breathing, background noise,
+        # keyboard sounds before they reach VAD (requires LiveKit Cloud)
+        input=RoomInputOptions(
+            noise_cancellation=noise_cancellation.BVC(),
         ),
     )
 
