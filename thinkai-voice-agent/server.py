@@ -270,7 +270,7 @@ async def entrypoint(ctx: JobContext):
         ),
         tts=cartesia.TTS(
             api_key=os.getenv("CARTESIA_API_KEY"),
-            voice=os.getenv("CARTESIA_VOICE_ID", "36e0c00b-1bfd-4ad7-a0e8-928d4cadca00"),
+            voice=os.getenv("CARTESIA_VOICE_ID", "93896c4f-aa00-4c17-a360-fec55579d7fa"),
             model="sonic-3",
             speed=1.0,
             language="hu",
