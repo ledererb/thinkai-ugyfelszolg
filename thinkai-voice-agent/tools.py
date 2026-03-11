@@ -637,6 +637,18 @@ async def modify_meeting(
         return f"Nem találtam ilyen eseményt. A naptárban ezek vannak: {titles}"
 
     try:
+        if not any([new_title, new_date, new_time, new_duration_minutes]):
+            logger.warning(f"modify_meeting called with no changes for: {event_title}")
+            return (
+                f"Nem kaptam módosítási adatot. Mit szeretnél változtatni? "
+                f"(új dátum, új időpont, új cím, vagy új időtartam)"
+            )
+
+        logger.info(
+            f"Modify args: title='{new_title}', date='{new_date}', "
+            f"time='{new_time}', duration={new_duration_minutes}"
+        )
+
         if new_title:
             found["title"] = new_title
         if new_date or new_time:
@@ -654,6 +666,7 @@ async def modify_meeting(
             found["end"] = (start + timedelta(minutes=new_duration_minutes)).isoformat()
 
         _write_json(CALENDAR_FILE, events)
+        logger.info(f"Calendar written successfully: {CALENDAR_FILE}")
 
         changes = []
         if new_title: changes.append(f"cím: {new_title}")

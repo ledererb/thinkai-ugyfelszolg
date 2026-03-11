@@ -771,7 +771,7 @@
 
         // ── Polling ──────────────────────────────────────────
         let lastCalHash = '';
-        let lastEmailCount = 0;
+        let lastEmailHash = '';
 
         function startPolling() {
             fetchCalendar();
@@ -846,8 +846,9 @@
                 return;
             }
 
-            if (emails.length === lastEmailCount) return;
-            lastEmailCount = emails.length;
+            const emailHash = JSON.stringify(emails);
+            if (emailHash === lastEmailHash) return;
+            lastEmailHash = emailHash;
 
             container.innerHTML = emails.map(em => {
                 let timeStr = '';
