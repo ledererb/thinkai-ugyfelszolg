@@ -97,8 +97,8 @@ class ThinkAIAgent(Agent):
         super().__init__(
             instructions=_get_system_prompt(),
             tools=ALL_TOOLS,
-            min_endpointing_delay=1.0,
-            max_endpointing_delay=5.0,
+            min_endpointing_delay=0.8,
+            max_endpointing_delay=4.0,
         )
 
     async def on_enter(self):
@@ -278,9 +278,9 @@ async def entrypoint(ctx: JobContext):
             emotion=["positivity:high", "curiosity"],
         ),
         vad=silero.VAD.load(
-            activation_threshold=0.92,
-            min_speech_duration=0.5,
-            min_silence_duration=0.8,
+            activation_threshold=0.75,
+            min_speech_duration=0.2,
+            min_silence_duration=0.65,
         ),
     )
 
